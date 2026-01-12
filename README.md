@@ -6,7 +6,7 @@ This project is built as an academic and portfolio-ready application using **Lar
 
 ---
 
-## 📦 Project Overview
+## Project Overview
 
 | ID           | Name               | Email                                      | Role      |
 |--------------|--------------------|--------------------------------------------|-----------|
@@ -17,7 +17,7 @@ This project is built as an academic and portfolio-ready application using **Lar
 
 ---
 
-## 🎯 Objective
+## Objective
 
 - Digitize apartment and tenant management
 - Securely store sensitive tenant documents (NID, lease agreements)
@@ -27,7 +27,7 @@ This project is built as an academic and portfolio-ready application using **Lar
 
 ---
 
-## 👥 Target Audience
+## Target Audience
 
 - Apartment and building administrators  
 - Property managers  
@@ -35,7 +35,7 @@ This project is built as an academic and portfolio-ready application using **Lar
 
 ---
 
-## 🧰 Tech Stack
+## Tech Stack
 
 ### Backend
 - Laravel (PHP)
@@ -45,14 +45,14 @@ This project is built as an academic and portfolio-ready application using **Lar
 
 ### Frontend
 - React.js
-- Tailwind CSS
+- CSS
 
 ### Rendering Method
 - Client-Side Rendering (CSR)
 
 ---
 
-## 🔐 Authentication & Security
+## Authentication & Security
 
 - JWT-based authentication using Laravel Sanctum
 - Role-based access control (Admin / Tenant)
@@ -62,7 +62,7 @@ This project is built as an academic and portfolio-ready application using **Lar
 
 ---
 
-## ✨ Key Features
+## Key Features
 
 ### Core Features
 - Apartment and tenant management
@@ -86,7 +86,7 @@ This project is built as an academic and portfolio-ready application using **Lar
 
 ---
 
-## 🔄 CRUD Operations
+## CRUD Operations
 
 CRUD functionality is implemented for:
 - Tenants
@@ -98,43 +98,8 @@ CRUD functionality is implemented for:
 
 ---
 
-## 🌐 API Endpoints (Approximate)
 
-### Authentication
-- `POST /api/login`
-- `POST /api/register`
-- `POST /api/logout`
-
-### Tenants
-- `GET /api/tenants`
-- `POST /api/tenants`
-- `PUT /api/tenants/{id}`
-- `DELETE /api/tenants/{id}`
-
-### Apartments
-- `GET /api/apartments`
-- `POST /api/apartments`
-
-### Leases
-- `GET /api/leases`
-- `POST /api/leases`
-- `PUT /api/leases/{id}`
-
-### Complaints
-- `GET /api/complaints`
-- `POST /api/complaints`
-- `PUT /api/complaints/{id}`
-
-### Documents
-- `POST /api/documents/upload`
-- `GET /api/documents/{id}`
-
-### Notifications
-- `GET /api/notifications`
-
----
-
-## 🗺️ Project Milestones
+## Project Milestones
 
 ### Milestone 1 — Foundation
 - Laravel and React project setup
@@ -159,19 +124,19 @@ CRUD functionality is implemented for:
 
 ---
 
-## 🎨 Figma Mockup
+## Figma Mockup
 
 Design reference for the UI and user flow: https://disc-voice-24868008.figma.site
 
 
 ---
 
-## 📚 Why This Project Matters
+## Why This Project Matters
 
 This project solves a real operational problem faced by most apartment buildings. It combines backend security, frontend usability, and automation in a practical, production-style system suitable for academic evaluation and professional portfolios.
 
 ---
 
-## 📄 License
+## License
 
 This project is developed for academic purposes.
