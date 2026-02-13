@@ -19,4 +19,9 @@ use Inertia\Inertia;
 
 Route::get('/', [WelcomeController::class, 'index']);
 
+// Admin dashboard route (renders resources/js/Pages/AdminDashboard.jsx)
+Route::get('/admin/dashboard', function () {
+	return Inertia::render('AdminDashboard');
+})->name('admin.dashboard');
+
 require __DIR__ . '/auth.php';
