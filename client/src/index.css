@@ -1,0 +1,76 @@
+:root {
+  font-family: 'Josefin Sans', serif;
+  line-height: 1.5;
+  font-weight: 400;
+}
+body {
+  font-family: 'Josefin Sans', serif;
+}
+
+.layout {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* landing page specific */
+header.bg-white a {
+  color: inherit;
+}
+
+/* feature icons in cards */
+.feature-icon {
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+}
+
+.feature-icon-lg {
+  width: 56px;
+  height: 56px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.75rem;
+}
+
+.hover-lift {
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.hover-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.15) !important;
+}
+
+/* small hero tweaks */
+.hero-image {
+  max-width: 100%;
+  border-radius: 8px;
+}
+
+header {
+  padding: 1em;
+}
+
+main {
+  flex: 1;
+  padding: 1em;
+}
+footer {
+  padding: 1em;
+  text-align: center;
+}
+
+@media (min-width: 576px) {
+  .w-lg-400 {
+    width: 400px;
+  }
+}
+
+@media (min-width: 576px) {
+  .navbar-mx {
+    padding-left: 300px;
+    padding-right: 300px;
+  }
+}
