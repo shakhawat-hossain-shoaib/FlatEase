@@ -4,6 +4,9 @@ import Landing from './views/Landing';
 import Login from './views/Login';
 import AdminDashboard from './views/AdminDashboard';
 import TenantDashboard from './views/TenantDashboard';
+import ApartmentManagement from './views/ApartmentManagement';
+//mport LeaseDetailsPage from './views/LeaseDetailsPage';
+//import ComplaintsPage from './views/ComplaintsPage';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './index.css';
 import { Toaster } from 'react-hot-toast';
@@ -25,6 +28,8 @@ function App() {
           }
         >
           <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/admin/apartments" element={<ApartmentManagement />} />
+          
           <Route path="/tenant" element={<TenantDashboard />} />
         </Route>
       </Routes>
