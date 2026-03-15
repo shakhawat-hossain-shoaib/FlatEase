@@ -111,37 +111,6 @@ const complaints: Complaint[] = [
   },
 ];
 
-const stats = [
-  {
-    label: 'Total Complaints',
-    value: '24',
-    icon: BsExclamationCircle,
-    iconClass: 'text-primary',
-    bgClass: 'bg-primary-subtle',
-  },
-  {
-    label: 'In Progress',
-    value: '7',
-    icon: BsClockHistory,
-    iconClass: 'text-warning',
-    bgClass: 'bg-warning-subtle',
-  },
-  {
-    label: 'Pending',
-    value: '5',
-    icon: BsExclamationTriangle,
-    iconClass: 'text-secondary',
-    bgClass: 'bg-secondary-subtle',
-  },
-  {
-    label: 'Resolved',
-    value: '12',
-    icon: BsCheckCircle,
-    iconClass: 'text-success',
-    bgClass: 'bg-success-subtle',
-  },
-];
-
 function getPriorityVariant(priority: Complaint['priority']) {
   switch (priority) {
     case 'High':
@@ -171,13 +140,80 @@ function getStatusVariant(status: Complaint['status']) {
 export default function ComplaintsPage({ role }: ComplaintsPageProps) {
   const visibleComplaints =
     role === 'Tenant'
-      ? complaints.filter((complaint) => complaint.reporter === 'John Doe' || complaint.unit === 'Tower A')
+      ? complaints.filter((complaint) => complaint.reporter === 'John Doe' || complaint.unit === 'A-301')
       : complaints;
 
-  const title = role === 'Admin' ? 'Complaints & Maintenance' : 'My Complaints & Maintenance';
+  const inProgressCount = visibleComplaints.filter((complaint) => complaint.status === 'In Progress').length;
+  const pendingCount = visibleComplaints.filter((complaint) => complaint.status === 'Pending').length;
+  const resolvedCount = visibleComplaints.filter((complaint) => complaint.status === 'Completed').length;
+
+  const stats =
+    role === 'Admin'
+      ? [
+          {
+            label: 'Total Complaints',
+            value: String(visibleComplaints.length),
+            icon: BsExclamationCircle,
+            iconClass: 'text-primary',
+            bgClass: 'bg-primary-subtle',
+          },
+          {
+            label: 'In Progress',
+            value: String(inProgressCount),
+            icon: BsClockHistory,
+            iconClass: 'text-warning',
+            bgClass: 'bg-warning-subtle',
+          },
+          {
+            label: 'Pending',
+            value: String(pendingCount),
+            icon: BsExclamationTriangle,
+            iconClass: 'text-secondary',
+            bgClass: 'bg-secondary-subtle',
+          },
+          {
+            label: 'Resolved',
+            value: String(resolvedCount),
+            icon: BsCheckCircle,
+            iconClass: 'text-success',
+            bgClass: 'bg-success-subtle',
+          },
+        ]
+      : [
+          {
+            label: 'My Requests',
+            value: String(visibleComplaints.length),
+            icon: BsExclamationCircle,
+            iconClass: 'text-primary',
+            bgClass: 'bg-primary-subtle',
+          },
+          {
+            label: 'In Progress',
+            value: String(inProgressCount),
+            icon: BsClockHistory,
+            iconClass: 'text-warning',
+            bgClass: 'bg-warning-subtle',
+          },
+          {
+            label: 'Awaiting Action',
+            value: String(pendingCount),
+            icon: BsExclamationTriangle,
+            iconClass: 'text-secondary',
+            bgClass: 'bg-secondary-subtle',
+          },
+          {
+            label: 'Resolved',
+            value: String(resolvedCount),
+            icon: BsCheckCircle,
+            iconClass: 'text-success',
+            bgClass: 'bg-success-subtle',
+          },
+        ];
+
+  const title = role === 'Admin' ? 'Complaints Management' : 'My Complaints & Maintenance';
   const subtitle =
     role === 'Admin'
-      ? 'Track and manage maintenance requests across the property.'
+      ? 'Review tenant complaints, assign teams, and track maintenance progress.'
       : 'Track your submitted requests and follow maintenance updates.';
 
   return (
@@ -189,10 +225,12 @@ export default function ComplaintsPage({ role }: ComplaintsPageProps) {
               <h2 className="mb-1">{title}</h2>
               <p className="text-muted mb-0">{subtitle}</p>
             </div>
-            <Button>
-              <BsPlus className="me-2" />
-              New Complaint
-            </Button>
+            {role !== 'Admin' && (
+              <Button>
+                <BsPlus className="me-2" />
+                New Complaint
+              </Button>
+            )}
           </div>
 
           <Row className="g-3 mb-4">
@@ -250,23 +288,31 @@ export default function ComplaintsPage({ role }: ComplaintsPageProps) {
                           <h4 className="h5 mb-0">{complaint.title}</h4>
                           <Badge bg={getStatusVariant(complaint.status)}>{complaint.status}</Badge>
                         </div>
-                        <div className="text-muted small">
-                          {complaint.id} · Unit {complaint.unit} · {complaint.category} · Reported {complaint.date}
-                        </div>
-                        {role === 'Admin' && (
-                          <div className="text-muted small mt-1">Reported by {complaint.reporter}</div>
+                        {role === 'Admin' ? (
+                          <>
+                            <div className="text-muted small">
+                              {complaint.id} · Unit {complaint.unit} · {complaint.category} · Reported {complaint.date}
+                            </div>
+                            <div className="text-muted small mt-1">Reported by {complaint.reporter}</div>
+                          </>
+                        ) : (
+                          <div className="text-muted small">
+                            Category: {complaint.category} · Submitted {complaint.date}
+                          </div>
                         )}
                       </div>
                     </div>
-                    <div>
-                      <Badge bg={getPriorityVariant(complaint.priority)}>{complaint.priority} Priority</Badge>
-                    </div>
+                    {role === 'Admin' && (
+                      <div>
+                        <Badge bg={getPriorityVariant(complaint.priority)}>{complaint.priority} Priority</Badge>
+                      </div>
+                    )}
                   </div>
                 </Card.Header>
                 <Card.Body className="px-4 pb-4">
                   <div className="d-flex align-items-center gap-2 mb-3">
                     <BsClockHistory className="text-muted" />
-                    <h5 className="h6 mb-0">Status Timeline</h5>
+                    <h5 className="h6 mb-0">{role === 'Admin' ? 'Status Timeline' : 'Request Timeline'}</h5>
                   </div>
 
                   <div className="border-start border-2 ps-3 ms-2 mb-4">

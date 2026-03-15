@@ -81,7 +81,9 @@ export default function LeaseDetailsPage({ role }: LeaseDetailsPageProps) {
           <div className="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3 mb-4">
             <div>
               <h2 className="mb-1">Lease Details</h2>
-              <p className="text-muted mb-0">Lease Agreement #{leaseId}</p>
+              <p className="text-muted mb-0">
+                {role === 'Tenant' ? 'Lease Agreement #1' : `Lease Agreement #${leaseId}`}
+              </p>
             </div>
             <div className="d-flex flex-wrap gap-2">
               <Button variant="outline-secondary">
