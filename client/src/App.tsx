@@ -7,6 +7,7 @@ import TenantDashboard from './views/TenantDashboard';
 import ApartmentManagement from './views/ApartmentManagement';
 import ComplaintsPage from './views/ComplaintsPage';
 import LeaseDetailsPage from './views/LeaseDetailsPage';
+import DocumentsPage from './views/DocumentsPage';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './index.css';
 import { Toaster } from 'react-hot-toast';
@@ -35,6 +36,7 @@ function App() {
           <Route path="/tenant" element={<TenantDashboard />} />
           <Route path="/tenant/lease" element={<LeaseDetailsPage role="Tenant" />} />
           <Route path="/tenant/lease/:id" element={<LeaseDetailsPage role="Tenant" />} />
+          <Route path="/tenant/documents" element={<DocumentsPage />} />
           <Route path="/tenant/complaints" element={<ComplaintsPage role="Tenant" />} />
         </Route>
       </Routes>

@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import {
   BsGrid,
   BsBuilding,
+  BsFolder,
   BsFileEarmarkText,
   BsChatDots,
   BsBoxArrowRight,
@@ -24,55 +25,57 @@ export function DashboardLayout({ role, children }: DashboardLayoutProps) {
 
   const isActive = (path: string) => location.pathname === path;
 
+  const sidebarItems =
+    role === 'Admin'
+      ? [
+          { label: 'Dashboard', icon: BsGrid, to: '/admin' },
+          { label: 'Apartments & Tenants', icon: BsBuilding, to: '/admin/apartments' },
+          { label: 'Lease Details', icon: BsFileEarmarkText, to: '/admin/lease' },
+          { label: 'Complaints', icon: BsChatDots, to: '/admin/complaints' },
+        ]
+      : [
+          { label: 'Dashboard', icon: BsGrid, to: '/tenant' },
+          { label: 'My Lease', icon: BsFileEarmarkText, to: '/tenant/lease' },
+          { label: 'Documents', icon: BsFolder, to: '/tenant/documents' },
+          { label: 'Complaints', icon: BsChatDots, to: '/tenant/complaints' },
+        ];
+
   return (
     <div className="d-flex">
-      {role === 'Admin' && (
-        <div
-          className="bg-light p-3"
-          style={{ width: '240px', minHeight: '100vh', position: 'fixed' }}
-        >
-          <h5 className="mb-4">FlatEase</h5>
-          <ListGroup variant="flush">
-            <ListGroup.Item
-              action
-              active={isActive('/admin')}
-              className="d-flex align-items-center"
-              onClick={() => navigate('/admin')}
-            >
-              <BsGrid className="me-2" /> Dashboard
-            </ListGroup.Item>
-            <ListGroup.Item
-              action
-              active={isActive('/admin/apartments')}
-              className="d-flex align-items-center"
-              onClick={() => navigate('/admin/apartments')}
-            >
-              <BsBuilding className="me-2" /> Apartments & Tenants
-            </ListGroup.Item>
-            <ListGroup.Item
-              action
-              active={isActive('/admin/lease')}
-              className="d-flex align-items-center"
-              onClick={() => navigate('/admin/lease')}
-            >
-              <BsFileEarmarkText className="me-2" /> Lease Details
-            </ListGroup.Item>
-            <ListGroup.Item
-              action
-              active={isActive('/admin/complaints')}
-              className="d-flex align-items-center"
-              onClick={() => navigate('/admin/complaints')}
-            >
-              <BsChatDots className="me-2" /> Complaints
-            </ListGroup.Item>
-          </ListGroup>
-        </div>
-      )}
-      <div className="flex-grow-1" style={{ marginLeft: role === 'Admin' ? '240px' : undefined }}>
-        <header className="d-flex justify-content-end p-3 border-bottom">
-          <span className="me-3">{role} Portal</span>
-          <Button variant="link" className="d-flex align-items-center" onClick={handleLogout}>
-            <BsBoxArrowRight className="me-1" /> Logout
+      <div
+        className="bg-light p-3 border-end"
+        style={{ width: '240px', minHeight: '100vh', position: 'fixed' }}
+      >
+        <h5 className="mb-4">FlatEase</h5>
+        <ListGroup variant="flush">
+          {sidebarItems.map((item) => {
+            const Icon = item.icon;
+
+            return (
+              <ListGroup.Item
+                key={item.label}
+                action
+                active={isActive(item.to)}
+                className="d-flex align-items-center"
+                onClick={() => navigate(item.to)}
+              >
+                <Icon className="me-2" /> {item.label}
+              </ListGroup.Item>
+            );
+          })}
+        </ListGroup>
+      </div>
+
+      <div className="flex-grow-1" style={{ marginLeft: '240px' }}>
+        <header className="d-flex justify-content-end align-items-center gap-4 px-4 py-3 border-bottom bg-white">
+          <span className="small text-muted mb-0">{role} Portal</span>
+          <Button
+            variant="link"
+            className="d-inline-flex align-items-center gap-1 p-0 text-dark text-decoration-none fw-semibold"
+            onClick={handleLogout}
+          >
+            <BsBoxArrowRight size={14} />
+            Logout
           </Button>
         </header>
         <main className="p-4">{children}</main>
