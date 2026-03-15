@@ -1,8 +1,13 @@
 import { ReactNode } from 'react';
 import { ListGroup, Button } from 'react-bootstrap';
-import { useNavigate } from 'react-router-dom';
-import { BsGrid, BsBuilding, BsFileEarmarkText, BsFileText, BsChatDots, BsCreditCard, BsBell, BsBoxArrowRight } from 'react-icons/bs';
-
+import { useLocation, useNavigate } from 'react-router-dom';
+import {
+  BsGrid,
+  BsBuilding,
+  BsFileEarmarkText,
+  BsChatDots,
+  BsBoxArrowRight,
+} from 'react-icons/bs';
 
 interface DashboardLayoutProps {
   role: 'Admin' | 'Tenant';
@@ -11,10 +16,13 @@ interface DashboardLayoutProps {
 
 export function DashboardLayout({ role, children }: DashboardLayoutProps) {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleLogout = () => {
     navigate('/login');
   };
+
+  const isActive = (path: string) => location.pathname === path;
 
   return (
     <div className="d-flex">
@@ -25,26 +33,37 @@ export function DashboardLayout({ role, children }: DashboardLayoutProps) {
         >
           <h5 className="mb-4">FlatEase</h5>
           <ListGroup variant="flush">
-            <ListGroup.Item action className="d-flex align-items-center">
+            <ListGroup.Item
+              action
+              active={isActive('/admin')}
+              className="d-flex align-items-center"
+              onClick={() => navigate('/admin')}
+            >
               <BsGrid className="me-2" /> Dashboard
             </ListGroup.Item>
-            <ListGroup.Item action className="d-flex align-items-center">
+            <ListGroup.Item
+              action
+              active={isActive('/admin/apartments')}
+              className="d-flex align-items-center"
+              onClick={() => navigate('/admin/apartments')}
+            >
               <BsBuilding className="me-2" /> Apartments & Tenants
             </ListGroup.Item>
-            <ListGroup.Item action className="d-flex align-items-center">
+            <ListGroup.Item
+              action
+              active={isActive('/admin/lease')}
+              className="d-flex align-items-center"
+              onClick={() => navigate('/admin/lease')}
+            >
               <BsFileEarmarkText className="me-2" /> Lease Details
             </ListGroup.Item>
-            <ListGroup.Item action className="d-flex align-items-center">
-              <BsFileText className="me-2" /> Documents
-            </ListGroup.Item>
-            <ListGroup.Item action className="d-flex align-items-center">
+            <ListGroup.Item
+              action
+              active={isActive('/admin/complaints')}
+              className="d-flex align-items-center"
+              onClick={() => navigate('/admin/complaints')}
+            >
               <BsChatDots className="me-2" /> Complaints
-            </ListGroup.Item>
-            <ListGroup.Item action className="d-flex align-items-center">
-              <BsCreditCard className="me-2" /> Payments
-            </ListGroup.Item>
-            <ListGroup.Item action className="d-flex align-items-center">
-              <BsBell className="me-2" /> Notifications
             </ListGroup.Item>
           </ListGroup>
         </div>
