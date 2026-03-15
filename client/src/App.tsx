@@ -6,6 +6,7 @@ import AdminDashboard from './views/AdminDashboard';
 import TenantDashboard from './views/TenantDashboard';
 import ApartmentManagement from './views/ApartmentManagement';
 import ComplaintsPage from './views/ComplaintsPage';
+import LeaseDetailsPage from './views/LeaseDetailsPage';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './index.css';
 import { Toaster } from 'react-hot-toast';
@@ -28,8 +29,12 @@ function App() {
         >
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/admin/apartments" element={<ApartmentManagement />} />
+          <Route path="/admin/lease" element={<LeaseDetailsPage role="Admin" />} />
+          <Route path="/admin/lease/:id" element={<LeaseDetailsPage role="Admin" />} />
           <Route path="/admin/complaints" element={<ComplaintsPage role="Admin" />} />
           <Route path="/tenant" element={<TenantDashboard />} />
+          <Route path="/tenant/lease" element={<LeaseDetailsPage role="Tenant" />} />
+          <Route path="/tenant/lease/:id" element={<LeaseDetailsPage role="Tenant" />} />
           <Route path="/tenant/complaints" element={<ComplaintsPage role="Tenant" />} />
         </Route>
       </Routes>
