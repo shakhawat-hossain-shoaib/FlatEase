@@ -1,26 +1,68 @@
 import { useState } from 'react';
-import { Button, Container, Form } from 'react-bootstrap';
+import { Button, Container, Form, Alert } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
-
 import { BsBuilding } from 'react-icons/bs';
+import axios from 'axios';
+import api from '../api'; // Importing the axios instance
+
+type LoginErrorResponse = {
+  message?: string;
+};
 
 export default function Login() {
   const [role, setRole] = useState<'Admin' | 'Tenant'>('Admin');
   const [input, setInput] = useState({ email: 'admin@flatease.com', password: 'password' });
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+
+  // Change default credentials based on the role toggle for demo purposes
+  const handleRoleChange = (selectedRole: 'Admin' | 'Tenant') => {
+    setRole(selectedRole);
+    if (selectedRole === 'Admin') {
+      setInput({ email: 'admin@flatease.com', password: 'password' });
+    } else {
+      setInput({ email: 'tenant@flatease.com', password: 'password' });
+    }
+    setError(''); // Clear errors on tab switch
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setInput((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // normally would call API to authenticate
-    if (role === 'Admin') {
-      navigate('/admin');
-    } else {
-      navigate('/tenant');
+    setError('');
+    setLoading(true);
+
+    try {
+      // 1. Call Laravel API
+      const response = await api.post('/login', {
+        email: input.email,
+        password: input.password,
+      });
+
+      // 2. Save token and user data to LocalStorage
+      localStorage.setItem('token', response.data.access_token);
+      localStorage.setItem('user', JSON.stringify(response.data.user));
+
+      // 3. Navigate securely based on backend database role (not just the UI toggle)
+      if (response.data.user.role === 'admin') {
+        navigate('/admin'); // or '/admin-dashboard' depending on your App.tsx routes
+      } else {
+        navigate('/tenant'); // or '/tenant-dashboard'
+      }
+    } catch (err: unknown) {
+      // Show error from backend or fallback message
+      if (axios.isAxiosError<LoginErrorResponse>(err)) {
+        setError(err.response?.data?.message || 'Invalid credentials. Please try again.');
+      } else {
+        setError('Invalid credentials. Please try again.');
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -36,6 +78,9 @@ export default function Login() {
           <h5 className="mb-2 fw-bold">Welcome Back</h5>
           <p className="text-muted mb-4">Sign in to access your account</p>
 
+          {/* Error Alert */}
+          {error && <Alert variant="danger" className="py-2 text-center">{error}</Alert>}
+
           <div className="mb-4">
             <div className="btn-group w-100" role="group">
               <input
@@ -44,7 +89,7 @@ export default function Login() {
                 name="role"
                 id="admin-role"
                 checked={role === 'Admin'}
-                onChange={() => setRole('Admin')}
+                onChange={() => handleRoleChange('Admin')}
               />
               <label className="btn btn-outline-primary rounded-start" htmlFor="admin-role">
                 Admin
@@ -55,7 +100,7 @@ export default function Login() {
                 name="role"
                 id="tenant-role"
                 checked={role === 'Tenant'}
-                onChange={() => setRole('Tenant')}
+                onChange={() => handleRoleChange('Tenant')}
               />
               <label className="btn btn-outline-primary rounded-end" htmlFor="tenant-role">
                 Tenant
@@ -65,7 +110,7 @@ export default function Login() {
 
           <Form onSubmit={handleSubmit}>
             <Form.Group className="mb-3" controlId="formBasicEmail">
-              <Form.Label>Email</Form.Label>
+              <Form.Label className="fw-semibold text-secondary small">Email Address</Form.Label>
               <Form.Control
                 type="email"
                 placeholder="john@example.com"
@@ -73,12 +118,12 @@ export default function Login() {
                 value={input.email}
                 onChange={handleChange}
                 required
-                className="border rounded-3 py-2"
+                className="border-0 bg-light rounded-3 py-2 px-3 focus-ring focus-ring-primary"
               />
             </Form.Group>
 
-            <Form.Group className="mb-3" controlId="formBasicPassword">
-              <Form.Label>Password</Form.Label>
+            <Form.Group className="mb-4" controlId="formBasicPassword">
+              <Form.Label className="fw-semibold text-secondary small">Password</Form.Label>
               <Form.Control
                 type="password"
                 placeholder="••••••••"
@@ -86,21 +131,22 @@ export default function Login() {
                 value={input.password}
                 onChange={handleChange}
                 required
-                className="border rounded-3 py-2"
+                className="border-0 bg-light rounded-3 py-2 px-3 focus-ring focus-ring-primary"
               />
             </Form.Group>
 
-            <Button variant="primary" type="submit" className="w-100 py-2 fw-bold">
-              Sign in as {role}
+            <Button variant="primary" type="submit" className="w-100 py-2 fw-bold rounded-3 shadow-sm" disabled={loading}>
+              {loading ? 'Signing in...' : `Sign in as ${role}`}
             </Button>
+
             <div className="text-center text-muted mt-3" style={{ fontSize: '0.85rem' }}>
               Demo: Pre-filled credentials
             </div>
           </Form>
-          <div className="mt-3 text-center">
-            <small>
-              Don't have an account? <a href="#">Register here</a>
-            </small>
+          <div className="mt-4 text-center">
+            <span className="text-muted small">
+              Don't have an account? <a href="/register" className="text-decoration-none fw-bold text-primary">Register here</a>
+            </span>
           </div>
         </div>
       </div>

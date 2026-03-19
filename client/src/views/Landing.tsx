@@ -1,11 +1,108 @@
+import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, Container, Row, Col, Nav, Navbar } from 'react-bootstrap';
 import { BsBuilding, BsShieldLock, BsFileEarmarkText, BsBell, BsCreditCard, BsChatDots } from 'react-icons/bs';
 
 export default function Landing() {
+  useEffect(() => {
+    const revealElements = Array.from(
+      document.querySelectorAll<HTMLElement>('.feature-card, #benefits ul li')
+    );
+
+    revealElements.forEach((element, index) => {
+      element.classList.add('reveal-item');
+      element.style.setProperty('--reveal-delay', `${index * 80}ms`);
+    });
+
+    const revealObserver = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('is-revealed');
+            revealObserver.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.16 }
+    );
+
+    revealElements.forEach((element) => revealObserver.observe(element));
+
+    const statsSection = document.getElementById('stats');
+    const statHeadings = Array.from(statsSection?.querySelectorAll<HTMLHeadingElement>('h3') ?? []);
+    const statTargets = [
+      { value: 500, prefix: '', suffix: '+' },
+      { value: 2000, prefix: '', suffix: '+' },
+      { value: 98, prefix: '', suffix: '%' },
+      { value: 24, prefix: '', suffix: '/7' },
+    ];
+
+    let statsAnimated = false;
+
+    const animateValue = (
+      element: HTMLHeadingElement,
+      target: number,
+      duration: number,
+      suffix: string,
+      prefix = ''
+    ) => {
+      const start = performance.now();
+      const startValue = 0;
+
+      const update = (timestamp: number) => {
+        const elapsed = timestamp - start;
+        const progress = Math.min(elapsed / duration, 1);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        const current = Math.round(startValue + (target - startValue) * eased);
+        const valueLabel = current.toLocaleString();
+
+        element.textContent = `${prefix}${valueLabel}${suffix}`;
+
+        if (progress < 1) {
+          requestAnimationFrame(update);
+        }
+      };
+
+      requestAnimationFrame(update);
+    };
+
+    const statsObserver = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting || statsAnimated) {
+            return;
+          }
+
+          statsAnimated = true;
+
+          statHeadings.forEach((heading, index) => {
+            const target = statTargets[index];
+            if (!target) {
+              return;
+            }
+
+            animateValue(heading, target.value, 1800 + index * 120, target.suffix, target.prefix);
+          });
+
+          statsObserver.disconnect();
+        });
+      },
+      { threshold: 0.4 }
+    );
+
+    if (statsSection) {
+      statsObserver.observe(statsSection);
+    }
+
+    return () => {
+      revealObserver.disconnect();
+      statsObserver.disconnect();
+    };
+  }, []);
+
   return (
     <>
-      <div style={{ background: '#e8f0ff', minHeight: '100vh' }}>
+      <div className="landing-page" style={{ minHeight: '100vh' }}>
         <Navbar expand="md" bg="white" className="border-bottom py-3">
         <Container>
           <Navbar.Brand>
@@ -161,7 +258,7 @@ export default function Landing() {
           </Container>
         </section>
 
-        <section id="stats" className="py-5 text-white" style={{ background: '#0d6efd' }}>
+        <section id="stats" className="py-5 text-white" style={{ background: 'var(--flatease-primary-gradient)' }}>
           <Container>
             <Row className="text-center">
               <Col md={3} className="mb-4 mb-md-0">

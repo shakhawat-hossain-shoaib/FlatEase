@@ -2,90 +2,40 @@
 
 namespace App\Http\Controllers;
 
-use App\Services\AttendanceService;
 use Illuminate\Http\Request;
+use App\Models\User;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\ValidationException;
 
 class SessionController extends Controller
 {
-    protected $attendanceService;
-
-    public function __construct(AttendanceService $attendanceService)
+    public function login(Request $request)
     {
-        $this->attendanceService = $attendanceService;
-    }
+        $request->validate([
+            'email' => 'required|email',
+            'password' => 'required',
+        ]);
 
-    // Get session data
-    public function getSession(Request $request)
-    {
-        // Call the service to get the valid session
-        $session = $this->attendanceService->getSession();
-        if ($session) {
-            return response()->json(['success' => true] + $session->toArray());
-        } else {
-            return response()->json([
-                'success' => false,
-                'message' => 'No active session found',
-            ], 200);
+        $user = User::where('email', $request->email)->first();
+
+        if (! $user || ! Hash::check($request->password, $user->password)) {
+            return response()->json(['message' => 'Invalid credentials'], 401);
         }
-    }
 
-    public function createSession(Request $request)
-    {
-        $sessionData = $request->validate([
-            'name' => 'required|string',
-            'duration' => 'required|integer',
-        ]);
-
-        $session = $this->attendanceService->createSession($sessionData);
+        // Create the token
+        $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
-            'success' => true,
-            'session' => $session,
-            'message' => 'Session created successfully',
+            'message' => 'Login successful',
+            'access_token' => $token,
+            'user' => $user
         ]);
     }
 
-    public function updateSession(Request $request)
+    public function logout(Request $request)
     {
-        $validated = $request->validate([
-            'session_id' => 'required|integer',
-            'active' => 'required|boolean',
-        ]);
-
-        $session = $this->attendanceService->updateSessionStatus($validated['session_id'], $validated['active']);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Session updated successfully.',
-            'session' => $session,
-        ]);
-
-    }
-
-    public function viewSessions(Request $request)
-    {
-        $sessions = $this->attendanceService->getAllSessions();
-
-        return response()->json([
-            'success' => true,
-            'sessions' => $sessions,
-        ]);
-    }
-
-    public function submitAttendance(Request $request)
-    {
-        // Validate the incoming request
-        $data = $request->validate([
-            'roll' => 'required|int',
-        ]);
-
-        // Call the AttendanceService to submit the attendance
-        $attendance = $this->attendanceService->submitAttendance($data['roll']);
-
-        return response()->json([
-            'success' => true,
-            'attendance' => $attendance,
-            'message' => 'Attendance submitted successfully',
-        ]);
+        // Revoke current token
+        $request->user()->currentAccessToken()->delete();
+        return response()->json(['message' => 'Logged out successfully']);
     }
 }
