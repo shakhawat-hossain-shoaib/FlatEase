@@ -2,6 +2,8 @@ import { ReactNode } from 'react';
 import { ListGroup, Button } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import { BsGrid, BsBuilding, BsFileEarmarkText, BsFileText, BsChatDots, BsCreditCard, BsBell, BsBoxArrowRight } from 'react-icons/bs';
+import api from '../api';
+import { useAuth } from '../context/useAuth';
 
 
 interface DashboardLayoutProps {
@@ -11,8 +13,16 @@ interface DashboardLayoutProps {
 
 export function DashboardLayout({ role, children }: DashboardLayoutProps) {
   const navigate = useNavigate();
+  const { logout } = useAuth();
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await api.post('/auth/logout');
+    } catch {
+      // Client session is still cleared on logout, even if request fails.
+    }
+
+    logout();
     navigate('/login');
   };
 

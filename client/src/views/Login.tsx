@@ -3,7 +3,8 @@ import { Button, Container, Form, Alert } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import { BsBuilding } from 'react-icons/bs';
 import axios from 'axios';
-import api from '../api'; // Importing the axios instance
+import api, { AuthResponse } from '../api';
+import { useAuth } from '../context/useAuth';
 
 type LoginErrorResponse = {
   message?: string;
@@ -15,6 +16,7 @@ export default function Login() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   // Change default credentials based on the role toggle for demo purposes
   const handleRoleChange = (selectedRole: 'Admin' | 'Tenant') => {
@@ -39,20 +41,19 @@ export default function Login() {
 
     try {
       // 1. Call Laravel API
-      const response = await api.post('/login', {
+      const response = await api.post<AuthResponse>('/auth/login', {
         email: input.email,
         password: input.password,
+        role: role.toLowerCase(),
       });
 
-      // 2. Save token and user data to LocalStorage
-      localStorage.setItem('token', response.data.access_token);
-      localStorage.setItem('user', JSON.stringify(response.data.user));
+      login(response.data);
 
-      // 3. Navigate securely based on backend database role (not just the UI toggle)
+      // 2. Navigate using authenticated user role from backend
       if (response.data.user.role === 'admin') {
-        navigate('/admin'); // or '/admin-dashboard' depending on your App.tsx routes
+        navigate('/admin');
       } else {
-        navigate('/tenant'); // or '/tenant-dashboard'
+        navigate('/tenant');
       }
     } catch (err: unknown) {
       // Show error from backend or fallback message

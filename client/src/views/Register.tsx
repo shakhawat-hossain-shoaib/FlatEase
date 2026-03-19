@@ -3,8 +3,9 @@ import { Button, Container, Form, Alert, Spinner } from 'react-bootstrap';
 import { useNavigate, Link } from 'react-router-dom';
 import { BsBuilding } from 'react-icons/bs';
 import axios from 'axios';
-import api from '../api';
+import api, { AuthResponse } from '../api';
 import toast from 'react-hot-toast';
+import { useAuth } from '../context/useAuth';
 
 type RegisterErrorResponse = {
   message?: string;
@@ -18,6 +19,7 @@ export default function Register() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   const handleRoleChange = (selectedRole: 'admin' | 'tenant') => {
     setRole(selectedRole);
@@ -41,7 +43,7 @@ export default function Register() {
     setLoading(true);
 
     try {
-      const response = await api.post('/auth/register', {
+      const response = await api.post<AuthResponse>('/auth/register', {
         name: input.name,
         email: input.email,
         password: input.password,
@@ -51,19 +53,15 @@ export default function Register() {
       // Show success toast
       toast.success('Registration successful!');
 
-      // Save token and user data to LocalStorage (auto-login)
+      // Auto-login after successful signup
       if (response.data.access_token) {
-        localStorage.setItem('token', response.data.access_token);
-        localStorage.setItem('user', JSON.stringify(response.data.user));
-        
-        // Navigate to respective dashboard
+        login(response.data);
         if (response.data.user.role === 'admin') {
           navigate('/admin');
         } else {
           navigate('/tenant');
         }
       } else {
-        // Fallback to login if no auto-login token was generated
         navigate('/login');
       }
     } catch (err: unknown) {

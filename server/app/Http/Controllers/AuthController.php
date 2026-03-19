@@ -2,12 +2,12 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\User;
+use App\Models\Admin;
+use App\Models\Tenant;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
-use Tymon\JWTAuth\Facades\JWTAuth;
 
 class AuthController extends Controller
 {
@@ -18,7 +18,7 @@ class AuthController extends Controller
      */
     public function __construct()
     {
-        $this->middleware('auth:api', ['except' => ['login', 'register']]);
+        $this->middleware('auth:admin_api,tenant_api', ['except' => ['login', 'register']]);
     }
 
     /**
@@ -30,32 +30,43 @@ class AuthController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|between:2,100',
-            'email' => 'required|string|email|max:100|unique:users',
+            'email' => 'required|string|email|max:100',
             'password' => 'required|string|min:6',
-            'role' => 'in:admin,tenant' // Defaults to tenant if not provided
+            'role' => 'required|in:admin,tenant',
         ]);
 
         if ($validator->fails()) {
-            return response()->json($validator->errors(), 400);
+            return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $user = User::create(array_merge(
-            $validator->validated(),
-            [
-                'password' => Hash::make($request->password),
-                'role' => $request->role ?? 'tenant',
-            ]
-        ));
+        $email = (string) $request->email;
+        if ($this->emailExistsAcrossRoles($email)) {
+            return response()->json([
+                'message' => 'The email has already been taken.',
+            ], 422);
+        }
 
-        // Let's directly return the JWT after registration to auto-login
-        // Alternatively, we could just return success. But returning token is often preferred.
-        $token = Auth::guard('api')->attempt($request->only('email', 'password'));
+        $role = (string) $request->role;
+        $model = $role === 'admin' ? new Admin() : new Tenant();
 
-        return response()->json([
-            'message' => 'User successfully registered',
-            'user' => $user,
-            'access_token' => $token
-        ], 201);
+        $model->name = (string) $request->name;
+        $model->email = $email;
+        $model->password = Hash::make((string) $request->password);
+        $model->save();
+
+        $guard = $this->guardForRole($role);
+        $token = Auth::guard($guard)->attempt([
+            'email' => $email,
+            'password' => (string) $request->password,
+        ]);
+
+        if (! $token) {
+            return response()->json([
+                'message' => 'Registration succeeded but token generation failed.',
+            ], 500);
+        }
+
+        return $this->createTokenResponse($token, $guard, 201);
     }
 
     /**
@@ -68,17 +79,24 @@ class AuthController extends Controller
         $validator = Validator::make($request->all(), [
             'email' => 'required|email',
             'password' => 'required|string|min:6',
+            'role' => 'required|in:admin,tenant',
         ]);
 
         if ($validator->fails()) {
-            return response()->json($validator->errors(), 422);
+            return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        if (! $token = Auth::guard('api')->attempt($validator->validated())) {
-            return response()->json(['error' => 'Unauthorized'], 401);
+        $guard = $this->guardForRole((string) $request->role);
+        $credentials = [
+            'email' => (string) $request->email,
+            'password' => (string) $request->password,
+        ];
+
+        if (! $token = Auth::guard($guard)->attempt($credentials)) {
+            return response()->json(['message' => 'Invalid credentials'], 401);
         }
 
-        return $this->createNewToken($token);
+        return $this->createTokenResponse($token, $guard);
     }
 
     /**
@@ -88,7 +106,14 @@ class AuthController extends Controller
      */
     public function me()
     {
-        return response()->json(Auth::guard('api')->user());
+        $guard = $this->resolveGuardFromRequest();
+        if (! $guard) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
+        return response()->json([
+            'user' => $this->mapUser(Auth::guard($guard)->user(), $this->roleForGuard($guard)),
+        ]);
     }
 
     /**
@@ -98,7 +123,12 @@ class AuthController extends Controller
      */
     public function logout()
     {
-        Auth::guard('api')->logout();
+        $guard = $this->resolveGuardFromRequest();
+        if (! $guard) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
+        Auth::guard($guard)->logout();
         return response()->json(['message' => 'User successfully signed out']);
     }
 
@@ -109,7 +139,12 @@ class AuthController extends Controller
      */
     public function refresh()
     {
-        return $this->createNewToken(Auth::guard('api')->refresh());
+        $guard = $this->resolveGuardFromRequest();
+        if (! $guard) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
+        return $this->createTokenResponse(Auth::guard($guard)->refresh(), $guard);
     }
 
     /**
@@ -119,13 +154,51 @@ class AuthController extends Controller
      *
      * @return \Illuminate\Http\JsonResponse
      */
-    protected function createNewToken($token)
+    protected function createTokenResponse($token, string $guard, int $status = 200)
     {
         return response()->json([
             'access_token' => $token,
             'token_type' => 'bearer',
-            'expires_in' => Auth::guard('api')->factory()->getTTL() * 60,
-            'user' => Auth::guard('api')->user()
-        ]);
+            'expires_in' => Auth::guard($guard)->factory()->getTTL() * 60,
+            'user' => $this->mapUser(Auth::guard($guard)->user(), $this->roleForGuard($guard)),
+        ], $status);
+    }
+
+    protected function guardForRole(string $role): string
+    {
+        return $role === 'admin' ? 'admin_api' : 'tenant_api';
+    }
+
+    protected function roleForGuard(string $guard): string
+    {
+        return $guard === 'admin_api' ? 'admin' : 'tenant';
+    }
+
+    protected function resolveGuardFromRequest(): ?string
+    {
+        if (Auth::guard('admin_api')->check()) {
+            return 'admin_api';
+        }
+
+        if (Auth::guard('tenant_api')->check()) {
+            return 'tenant_api';
+        }
+
+        return null;
+    }
+
+    protected function emailExistsAcrossRoles(string $email): bool
+    {
+        return Admin::where('email', $email)->exists() || Tenant::where('email', $email)->exists();
+    }
+
+    protected function mapUser($user, string $role): array
+    {
+        return [
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'role' => $role,
+        ];
     }
 }
