@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Button, Container, Form } from 'react-bootstrap';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 import { BsBuilding } from 'react-icons/bs';
 
@@ -99,7 +99,7 @@ export default function Login() {
           </Form>
           <div className="mt-3 text-center">
             <small>
-              Don't have an account? <a href="#">Register here</a>
+              Don't have an account? <Link to="/register">Register here</Link>
             </small>
           </div>
         </div>
