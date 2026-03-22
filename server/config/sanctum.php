@@ -13,12 +13,39 @@ return [
     |
     */
 
-    'stateful' => explode(',', env('SANCTUM_STATEFUL_DOMAINS', sprintf(
-        '%s%s%s',
-        'localhost,localhost:3000,127.0.0.1,127.0.0.1:8000,::1',
-        env('APP_URL') ? ','.parse_url(env('APP_URL'), PHP_URL_HOST) : '',
-        env('FRONTEND_URL') ? ','.parse_url(env('FRONTEND_URL'), PHP_URL_HOST) : ''
-    ))),
+    'stateful' => explode(',', env('SANCTUM_STATEFUL_DOMAINS', (function () {
+        $defaults = [
+            'localhost',
+            'localhost:3000',
+            '127.0.0.1',
+            '127.0.0.1:8000',
+            '::1',
+        ];
+
+        $appUrl = env('APP_URL');
+        if ($appUrl) {
+            $appHost = parse_url($appUrl, PHP_URL_HOST);
+            if (is_string($appHost) && $appHost !== '') {
+                $defaults[] = $appHost;
+            }
+        }
+
+        $frontendUrl = env('FRONTEND_URL');
+        if ($frontendUrl) {
+            $frontendHost = parse_url($frontendUrl, PHP_URL_HOST);
+            $frontendPort = parse_url($frontendUrl, PHP_URL_PORT);
+
+            if (is_string($frontendHost) && $frontendHost !== '') {
+                $defaults[] = $frontendHost;
+
+                if (is_int($frontendPort)) {
+                    $defaults[] = $frontendHost.':'.$frontendPort;
+                }
+            }
+        }
+
+        return implode(',', array_values(array_unique($defaults)));
+    })())),
 
     /*
     |--------------------------------------------------------------------------

@@ -21,8 +21,10 @@ Route::middleware(['auth:sanctum'])->get('/user', function (Request $request) {
 });
 
 Route::get('/session', [SessionController::class, 'getSession']);
-Route::post('/session', [SessionController::class, 'createSession'])->middleware('check.admin');
-Route::put('/session', [SessionController::class, 'updateSession'])->middleware('check.admin');
-Route::post('/sessions', [SessionController::class, 'viewSessions'])->middleware('check.admin');
-Route::post('/admin/users', [UserManagementController::class, 'store'])->middleware('check.admin');
+Route::middleware(['auth:sanctum', 'check.admin'])->group(function () {
+    Route::post('/session', [SessionController::class, 'createSession']);
+    Route::put('/session', [SessionController::class, 'updateSession']);
+    Route::post('/sessions', [SessionController::class, 'viewSessions']);
+    Route::post('/admin/users', [UserManagementController::class, 'store']);
+});
 Route::post('/attendance', [SessionController::class, 'submitAttendance']);
