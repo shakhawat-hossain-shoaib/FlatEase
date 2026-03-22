@@ -7,6 +7,7 @@ import Register from './views/Register';
 import AdminDashboard from './views/AdminDashboard';
 import TenantDashboard from './views/TenantDashboard';
 import ApartmentManagement from './views/ApartmentManagement';
+import AdminUserManagement from './views/AdminUserManagement';
 import ComplaintsPage from './views/ComplaintsPage';
 import LeaseDetailsPage from './views/LeaseDetailsPage';
 import DocumentsPage from './views/DocumentsPage';
@@ -114,6 +115,14 @@ function App() {
             element={
               <RoleGuard role="admin">
                 <ComplaintsPage role="Admin" />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="/admin/users"
+            element={
+              <RoleGuard role="admin">
+                <AdminUserManagement />
               </RoleGuard>
             }
           />
