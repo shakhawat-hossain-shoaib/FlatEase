@@ -73,6 +73,22 @@ class ApiClient {
     }
   }
 
+  async register(name: string, email: string, password: string, password_confirmation: string) {
+    try {
+      const response = await this.client.post('/register', {
+        name,
+        email,
+        password,
+        password_confirmation,
+      });
+
+      return response.data;
+    } catch (error) {
+      this.handleError(error);
+      return undefined;
+    }
+  }
+
   // Handle common errors
   handleError(error: any) {
     if (error.response) {
