@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import {
   BsGrid,
   BsBuilding,
+  BsPeople,
   BsFolder,
   BsFileEarmarkText,
   BsChatDots,
@@ -46,6 +47,7 @@ export function DashboardLayout({ role, children }: DashboardLayoutProps) {
       ? [
           { label: 'Dashboard', icon: BsGrid, to: '/admin' },
           { label: 'Apartments & Tenants', icon: BsBuilding, to: '/admin/apartments' },
+          { label: 'Users', icon: BsPeople, to: '/admin/users' },
           { label: 'Lease Details', icon: BsFileEarmarkText, to: '/admin/lease' },
           { label: 'Complaints', icon: BsChatDots, to: '/admin/complaints' },
         ]

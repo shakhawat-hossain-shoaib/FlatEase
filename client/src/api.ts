@@ -19,6 +19,17 @@ export type BasicApiResponse = {
   message: string;
 };
 
+export type AdminCreateUserResponse = {
+  success: boolean;
+  message: string;
+  user: {
+    id: number;
+    name: string;
+    email: string;
+    role: 'admin' | 'tenant';
+  };
+};
+
 class ApiClient {
   private client: AxiosInstance;
 
@@ -123,6 +134,29 @@ class ApiClient {
   async logout(): Promise<BasicApiResponse | undefined> {
     try {
       const response = await this.client.post('/logout');
+      return response.data;
+    } catch (error) {
+      this.handleError(error);
+      return undefined;
+    }
+  }
+
+  async createAdminUser(
+    name: string,
+    email: string,
+    password: string,
+    password_confirmation: string,
+    role: 'admin' | 'tenant'
+  ): Promise<AdminCreateUserResponse | undefined> {
+    try {
+      const response = await this.client.post('/api/admin/users', {
+        name,
+        email,
+        password,
+        password_confirmation,
+        role,
+      });
+
       return response.data;
     } catch (error) {
       this.handleError(error);
