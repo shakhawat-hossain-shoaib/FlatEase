@@ -26,8 +26,8 @@ class RegisteredUserController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
-            // Self-registration only allows tenant accounts.
-            'role' => ['sometimes', 'in:tenant'],
+            // Public registration must not accept role elevation input.
+            'role' => ['prohibited'],
         ]);
 
         if ($validator->fails()) {
