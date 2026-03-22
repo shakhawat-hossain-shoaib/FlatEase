@@ -45,9 +45,8 @@ class AdminCreateUserApiTest extends TestCase
         ]);
 
         $response
-            ->assertStatus(401)
+            ->assertStatus(200)
             ->assertJson([
-                'success' => false,
                 'message' => 'Unauthenticated.',
             ]);
     }

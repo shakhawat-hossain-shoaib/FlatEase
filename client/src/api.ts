@@ -36,10 +36,15 @@ class ApiClient {
   constructor() {
     this.client = axios.create({
       baseURL: secrets.backendEndpoint,
+      withCredentials: true,
       headers: {
         'Content-Type': 'application/json',
       },
     });
+  }
+
+  private async ensureCsrfCookie() {
+    await this.client.get('/sanctum/csrf-cookie');
   }
 
   // currently, only fetches 1 session greater than current time
@@ -54,6 +59,8 @@ class ApiClient {
 
   async createSession(name: string, duration: number, username: string, password: string) {
     try {
+      await this.ensureCsrfCookie();
+
       if (!username || !password) {
         toast.error('Credentials are required');
         return;
@@ -67,6 +74,8 @@ class ApiClient {
 
   async updateSession(session_id: number, active: boolean, username: string, password: string) {
     try {
+      await this.ensureCsrfCookie();
+
       if (!username || !password) {
         toast.error('Credentials are required');
         return;
@@ -90,6 +99,8 @@ class ApiClient {
 
   async viewSessions(username: string, password: string) {
     try {
+      await this.ensureCsrfCookie();
+
       if (!username || !password) {
         toast.error('Credentials are required');
         return;
@@ -103,6 +114,8 @@ class ApiClient {
 
   async register(name: string, email: string, password: string, password_confirmation: string) {
     try {
+      await this.ensureCsrfCookie();
+
       const response = await this.client.post('/register', {
         name,
         email,
@@ -119,6 +132,8 @@ class ApiClient {
 
   async login(email: string, password: string): Promise<LoginResponse | undefined> {
     try {
+      await this.ensureCsrfCookie();
+
       const response = await this.client.post('/login', {
         email,
         password,
@@ -133,6 +148,8 @@ class ApiClient {
 
   async logout(): Promise<BasicApiResponse | undefined> {
     try {
+      await this.ensureCsrfCookie();
+
       const response = await this.client.post('/logout');
       return response.data;
     } catch (error) {
@@ -149,6 +166,8 @@ class ApiClient {
     role: 'admin' | 'tenant'
   ): Promise<AdminCreateUserResponse | undefined> {
     try {
+      await this.ensureCsrfCookie();
+
       const response = await this.client.post('/api/admin/users', {
         name,
         email,
