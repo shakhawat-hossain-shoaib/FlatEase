@@ -1,11 +1,15 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Button, Container, Form } from 'react-bootstrap';
 import { Link, useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 
 import { BsBuilding } from 'react-icons/bs';
+import ApiClient from '../api';
+import { getDefaultPathForRole, setStoredAuthUser } from '../helpers/auth';
 
 export default function Login() {
-  const [role, setRole] = useState<'Admin' | 'Tenant'>('Admin');
+  const api = useMemo(() => new ApiClient(), []);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [input, setInput] = useState({ email: 'admin@flatease.com', password: 'password' });
   const navigate = useNavigate();
 
@@ -14,14 +18,22 @@ export default function Login() {
     setInput((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // normally would call API to authenticate
-    if (role === 'Admin') {
-      navigate('/admin');
-    } else {
-      navigate('/tenant');
+
+    setIsSubmitting(true);
+    const response = await api.login(input.email, input.password);
+    setIsSubmitting(false);
+
+    if (!response?.success) {
+      return;
     }
+
+    setStoredAuthUser(response.user);
+
+    const targetPath = response.redirectPath || getDefaultPathForRole(response.user.role);
+    toast.success('Signed in successfully.');
+    navigate(targetPath);
   };
 
   return (
@@ -35,33 +47,6 @@ export default function Login() {
         <div className="card p-5 shadow">
           <h5 className="mb-2 fw-bold">Welcome Back</h5>
           <p className="text-muted mb-4">Sign in to access your account</p>
-
-          <div className="mb-4">
-            <div className="btn-group w-100" role="group">
-              <input
-                type="radio"
-                className="btn-check"
-                name="role"
-                id="admin-role"
-                checked={role === 'Admin'}
-                onChange={() => setRole('Admin')}
-              />
-              <label className="btn btn-outline-primary rounded-start" htmlFor="admin-role">
-                Admin
-              </label>
-              <input
-                type="radio"
-                className="btn-check"
-                name="role"
-                id="tenant-role"
-                checked={role === 'Tenant'}
-                onChange={() => setRole('Tenant')}
-              />
-              <label className="btn btn-outline-primary rounded-end" htmlFor="tenant-role">
-                Tenant
-              </label>
-            </div>
-          </div>
 
           <Form onSubmit={handleSubmit}>
             <Form.Group className="mb-3" controlId="formBasicEmail">
@@ -90,11 +75,11 @@ export default function Login() {
               />
             </Form.Group>
 
-            <Button variant="primary" type="submit" className="w-100 py-2 fw-bold">
-              Sign in as {role}
+            <Button variant="primary" type="submit" className="w-100 py-2 fw-bold" disabled={isSubmitting}>
+              {isSubmitting ? 'Signing in...' : 'Sign in'}
             </Button>
             <div className="text-center text-muted mt-3" style={{ fontSize: '0.85rem' }}>
-              Demo: Pre-filled credentials
+              Use your registered email and password
             </div>
           </Form>
           <div className="mt-3 text-center">
