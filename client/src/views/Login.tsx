@@ -26,6 +26,9 @@ export default function Login() {
     setIsSubmitting(false);
 
     if (!response?.success) {
+      if (response?.message) {
+        toast.error(response.message);
+      }
       return;
     }
 
