@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
 
 class AuthenticatedSessionController extends Controller
 {
@@ -17,11 +18,33 @@ class AuthenticatedSessionController extends Controller
      */
     public function store(LoginRequest $request)
     {
-        $request->authenticate();
+        try {
+            $request->authenticate();
+        } catch (ValidationException $exception) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid credentials.',
+                'errors' => $exception->errors(),
+            ], 401);
+        }
 
         $request->session()->regenerate();
 
-        return response()->noContent();
+        $user = Auth::user();
+
+        $redirectPath = $user && $user->role === 'admin' ? '/admin' : '/tenant';
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Login successful.',
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'role' => $user->role,
+            ],
+            'redirectPath' => $redirectPath,
+        ], 200);
     }
 
     /**
@@ -38,6 +61,9 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerateToken();
 
-        return response()->noContent();
+        return response()->json([
+            'success' => true,
+            'message' => 'Logged out successfully.',
+        ], 200);
     }
 }
