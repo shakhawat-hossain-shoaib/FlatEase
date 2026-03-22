@@ -2,6 +2,18 @@ import axios, { AxiosInstance } from 'axios';
 import { secrets } from './secrets';
 import toast from 'react-hot-toast';
 
+export type LoginResponse = {
+  success: boolean;
+  message: string;
+  user: {
+    id: number;
+    name: string;
+    email: string;
+    role: 'admin' | 'tenant';
+  };
+  redirectPath: '/admin' | '/tenant';
+};
+
 class ApiClient {
   private client: AxiosInstance;
 
@@ -80,6 +92,20 @@ class ApiClient {
         email,
         password,
         password_confirmation,
+      });
+
+      return response.data;
+    } catch (error) {
+      this.handleError(error);
+      return undefined;
+    }
+  }
+
+  async login(email: string, password: string): Promise<LoginResponse | undefined> {
+    try {
+      const response = await this.client.post('/login', {
+        email,
+        password,
       });
 
       return response.data;

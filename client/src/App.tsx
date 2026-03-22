@@ -1,4 +1,5 @@
-import { Outlet, Route, Routes } from 'react-router';
+import { ReactNode } from 'react';
+import { Navigate, Outlet, Route, Routes } from 'react-router-dom';
 import BaseLayout from './views/BaseLayout';
 import Landing from './views/Landing';
 import Login from './views/Login';
@@ -12,6 +13,44 @@ import DocumentsPage from './views/DocumentsPage';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './index.css';
 import { Toaster } from 'react-hot-toast';
+import { getDefaultPathForRole, getStoredAuthUser, UserRole } from './helpers/auth';
+
+function PublicOnlyRoute({ children }: { children: ReactNode }) {
+  const user = getStoredAuthUser();
+  if (!user) {
+    return <>{children}</>;
+  }
+
+  return <Navigate to={getDefaultPathForRole(user.role)} replace />;
+}
+
+function ProtectedLayoutRoute() {
+  const user = getStoredAuthUser();
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return (
+    <BaseLayout>
+      <Outlet />
+    </BaseLayout>
+  );
+}
+
+function RoleGuard({ role, children }: { role: UserRole; children: ReactNode }) {
+  const user = getStoredAuthUser();
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (user.role !== role) {
+    return <Navigate to={getDefaultPathForRole(user.role)} replace />;
+  }
+
+  return <>{children}</>;
+}
 
 function App() {
   return (
@@ -19,27 +58,105 @@ function App() {
       <Routes>
         {/* public marketing routes */}
         <Route path="/" element={<Landing />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
+        <Route
+          path="/login"
+          element={
+            <PublicOnlyRoute>
+              <Login />
+            </PublicOnlyRoute>
+          }
+        />
+        <Route
+          path="/register"
+          element={
+            <PublicOnlyRoute>
+              <Register />
+            </PublicOnlyRoute>
+          }
+        />
 
         {/* authenticated dashboard area uses a layout with sidebar/header */}
-        <Route
-          element={
-            <BaseLayout>
-              <Outlet />
-            </BaseLayout>
-          }
-        >
-          <Route path="/admin" element={<AdminDashboard />} />
-          <Route path="/admin/apartments" element={<ApartmentManagement />} />
-          <Route path="/admin/lease" element={<LeaseDetailsPage role="Admin" />} />
-          <Route path="/admin/lease/:id" element={<LeaseDetailsPage role="Admin" />} />
-          <Route path="/admin/complaints" element={<ComplaintsPage role="Admin" />} />
-          <Route path="/tenant" element={<TenantDashboard />} />
-          <Route path="/tenant/lease" element={<LeaseDetailsPage role="Tenant" />} />
-          <Route path="/tenant/lease/:id" element={<LeaseDetailsPage role="Tenant" />} />
-          <Route path="/tenant/documents" element={<DocumentsPage />} />
-          <Route path="/tenant/complaints" element={<ComplaintsPage role="Tenant" />} />
+        <Route element={<ProtectedLayoutRoute />}>
+          <Route
+            path="/admin"
+            element={
+              <RoleGuard role="admin">
+                <AdminDashboard />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="/admin/apartments"
+            element={
+              <RoleGuard role="admin">
+                <ApartmentManagement />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="/admin/lease"
+            element={
+              <RoleGuard role="admin">
+                <LeaseDetailsPage role="Admin" />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="/admin/lease/:id"
+            element={
+              <RoleGuard role="admin">
+                <LeaseDetailsPage role="Admin" />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="/admin/complaints"
+            element={
+              <RoleGuard role="admin">
+                <ComplaintsPage role="Admin" />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="/tenant"
+            element={
+              <RoleGuard role="tenant">
+                <TenantDashboard />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="/tenant/lease"
+            element={
+              <RoleGuard role="tenant">
+                <LeaseDetailsPage role="Tenant" />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="/tenant/lease/:id"
+            element={
+              <RoleGuard role="tenant">
+                <LeaseDetailsPage role="Tenant" />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="/tenant/documents"
+            element={
+              <RoleGuard role="tenant">
+                <DocumentsPage />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="/tenant/complaints"
+            element={
+              <RoleGuard role="tenant">
+                <ComplaintsPage role="Tenant" />
+              </RoleGuard>
+            }
+          />
         </Route>
       </Routes>
       <Toaster
