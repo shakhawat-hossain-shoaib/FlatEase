@@ -36,6 +36,11 @@ export default function Register() {
       return;
     }
 
+    if (input.password.length < 8) {
+      toast.error('Password must be at least 8 characters.');
+      return;
+    }
+
     setIsSubmitting(true);
     const response = await api.register(
       input.name,
@@ -46,6 +51,9 @@ export default function Register() {
     setIsSubmitting(false);
 
     if (!response?.success) {
+      if (response?.message) {
+        toast.error(response.message);
+      }
       return;
     }
 

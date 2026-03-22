@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import { ReactNode, useMemo, useState } from 'react';
 import { ListGroup, Button } from 'react-bootstrap';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
@@ -9,6 +9,8 @@ import {
   BsChatDots,
   BsBoxArrowRight,
 } from 'react-icons/bs';
+import ApiClient from '../api';
+import { clearStoredAuthUser } from '../helpers/auth';
 
 interface DashboardLayoutProps {
   role: 'Admin' | 'Tenant';
@@ -18,9 +20,23 @@ interface DashboardLayoutProps {
 export function DashboardLayout({ role, children }: DashboardLayoutProps) {
   const navigate = useNavigate();
   const location = useLocation();
+  const api = useMemo(() => new ApiClient(), []);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  const handleLogout = () => {
-    navigate('/login');
+  const handleLogout = async () => {
+    if (isLoggingOut) {
+      return;
+    }
+
+    setIsLoggingOut(true);
+
+    try {
+      await api.logout();
+    } finally {
+      clearStoredAuthUser();
+      navigate('/login', { replace: true });
+      setIsLoggingOut(false);
+    }
   };
 
   const isActive = (path: string) => location.pathname === path;
@@ -73,9 +89,10 @@ export function DashboardLayout({ role, children }: DashboardLayoutProps) {
             variant="link"
             className="d-inline-flex align-items-center gap-1 p-0 text-dark text-decoration-none fw-semibold"
             onClick={handleLogout}
+            disabled={isLoggingOut}
           >
             <BsBoxArrowRight size={14} />
-            Logout
+            {isLoggingOut ? 'Logging out...' : 'Logout'}
           </Button>
         </header>
         <main className="p-4">{children}</main>
