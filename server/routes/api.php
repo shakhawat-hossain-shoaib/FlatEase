@@ -34,4 +34,5 @@ Route::post('/attendance', [SessionController::class, 'submitAttendance']);
 Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/complaints', [ComplaintController::class, 'index']);
     Route::post('/complaints', [ComplaintController::class, 'store']);
+    Route::get('/complaints/{id}', [ComplaintController::class, 'show']);
 });

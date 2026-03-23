@@ -57,7 +57,14 @@ class ComplaintController extends Controller
      */
     public function show($id)
     {
-        //
+        $complaint = Complaint::with(['tenant', 'assignedTechnician', 'statusHistories', 'comments'])
+            ->findOrFail($id);
+        
+        if ($complaint->tenant_id !== Auth::id()) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+        
+        return response()->json($complaint, 200);
     }
 
     /**
