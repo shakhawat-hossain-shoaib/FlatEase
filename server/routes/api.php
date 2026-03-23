@@ -40,4 +40,5 @@ Route::middleware(['auth:sanctum'])->group(function () {
 // Admin complaint routes
 Route::middleware(['auth:sanctum', 'check.admin'])->group(function () {
     Route::get('/admin/complaints', [ComplaintController::class, 'adminIndex']);
+    Route::patch('/admin/complaints/{id}/status', [ComplaintController::class, 'updateStatus']);
 });
