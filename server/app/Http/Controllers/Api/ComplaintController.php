@@ -68,15 +68,37 @@ class ComplaintController extends Controller
     }
 
     /**
-     * Update the specified resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
+     * Display all complaints for admin with filtering
      */
-    public function update(Request $request, $id)
+    public function adminIndex(Request $request)
     {
-        //
+        $perPage = $request->query('per_page', 15);
+        $status = $request->query('status');
+        $priority = $request->query('priority');
+        $sort = $request->query('sort', 'created_at');
+        $order = $request->query('order', 'desc');
+
+        $query = Complaint::query();
+
+        if ($status && in_array($status, ['pending', 'in_progress', 'resolved'])) {
+            $query->where('status', $status);
+        }
+
+        if ($priority && in_array($priority, ['low', 'medium', 'high'])) {
+            $query->where('priority', $priority);
+        }
+
+        $sortableFields = ['created_at', 'updated_at', 'status', 'priority'];
+        if (in_array($sort, $sortableFields)) {
+            $order = strtolower($order) === 'asc' ? 'asc' : 'desc';
+            $query->orderBy($sort, $order);
+        } else {
+            $query->orderBy('created_at', 'desc');
+        }
+
+        $complaints = $query->paginate($perPage);
+
+        return response()->json($complaints, 200);
     }
 
     /**

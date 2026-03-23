@@ -36,3 +36,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('/complaints', [ComplaintController::class, 'store']);
     Route::get('/complaints/{id}', [ComplaintController::class, 'show']);
 });
+
+// Admin complaint routes
+Route::middleware(['auth:sanctum', 'check.admin'])->group(function () {
+    Route::get('/admin/complaints', [ComplaintController::class, 'adminIndex']);
+});
