@@ -4,6 +4,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\SessionController;
 use App\Http\Controllers\Admin\UserManagementController;
+use App\Http\Controllers\Api\ComplaintController;
 
 /*
 |--------------------------------------------------------------------------
@@ -28,3 +29,8 @@ Route::middleware(['auth:sanctum', 'check.admin'])->group(function () {
     Route::post('/admin/users', [UserManagementController::class, 'store']);
 });
 Route::post('/attendance', [SessionController::class, 'submitAttendance']);
+
+// Complaint routes
+Route::middleware(['auth:sanctum'])->group(function () {
+    Route::post('/complaints', [ComplaintController::class, 'store']);
+});
