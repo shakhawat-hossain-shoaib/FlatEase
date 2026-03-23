@@ -14,9 +14,15 @@ class ComplaintController extends Controller
      *
      * @return \Illuminate\Http\Response
      */
-    public function index()
+    public function index(Request $request)
     {
-        //
+        $perPage = $request->query('per_page', 15);
+        
+        $complaints = Complaint::where('tenant_id', Auth::id())
+            ->orderBy('created_at', 'desc')
+            ->paginate($perPage);
+        
+        return response()->json($complaints, 200);
     }
 
     /**
