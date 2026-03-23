@@ -3,6 +3,10 @@
 namespace App\Exceptions;
 
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
+use Illuminate\Validation\ValidationException;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Auth\AuthenticationException;
+use Illuminate\Auth\Access\AuthorizationException;
 use Throwable;
 
 class Handler extends ExceptionHandler
@@ -48,33 +52,37 @@ class Handler extends ExceptionHandler
      */
     public function render($request, Throwable $exception)
     {
-        $message = $this->getMessage($exception);
-
-        return response()->json([
-            'success' => false,
-            'message' => $message,
-        ], 200);
-    }
-
-
-
-    /**
-     * Get the error message from the exception.
-     *
-     * @param \Throwable $exception
-     * @return string
-     */
-    protected function getMessage(Throwable $exception): string
-    {
         if ($exception instanceof ValidationException) {
-            return 'Validation failed.';
+            return response()->json([
+                'errors' => $exception->errors(),
+                'message' => 'Validation failed.'
+            ], 422);
+        }
+
+        if ($exception instanceof AuthenticationException) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthenticated.'
+            ], 401);
+        }
+
+        if ($exception instanceof AuthorizationException) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Forbidden. Admin access required.'
+            ], 403);
         }
 
         if ($exception instanceof ModelNotFoundException) {
-            return 'Resource not found.';
+            return response()->json([
+                'success' => false,
+                'message' => 'Resource not found.'
+            ], 404);
         }
 
-        return $exception->getMessage() ?: 'An unexpected error occurred.';
+        return response()->json([
+            'success' => false,
+            'message' => $exception->getMessage() ?: 'An unexpected error occurred.'
+        ], $exception->getCode() ?: 500);
     }
-
 }
