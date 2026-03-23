@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Complaint;
+use App\Models\ComplaintStatusHistory;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -99,6 +100,55 @@ class ComplaintController extends Controller
         $complaints = $query->paginate($perPage);
 
         return response()->json($complaints, 200);
+    }
+
+    /**
+     * Update complaint status with validation and history
+     */
+    public function updateStatus(Request $request, $id)
+    {
+        $complaint = Complaint::findOrFail($id);
+        
+        $validated = $request->validate([
+            'new_status' => 'required|in:pending,in_progress,resolved',
+        ]);
+
+        $oldStatus = $complaint->status;
+        $newStatus = $validated['new_status'];
+
+        // Check if same status
+        if ($oldStatus === $newStatus) {
+            return response()->json(['error' => 'Status is already ' . $newStatus], 422);
+        }
+
+        // Validate transitions
+        $validTransitions = [
+            'pending' => ['in_progress', 'resolved'],
+            'in_progress' => ['pending', 'resolved'],
+            'resolved' => [],
+        ];
+
+        if (!in_array($newStatus, $validTransitions[$oldStatus] ?? [])) {
+            return response()->json(['error' => 'Cannot transition from ' . $oldStatus . ' to ' . $newStatus], 422);
+        }
+
+        // Create status history
+        ComplaintStatusHistory::create([
+            'complaint_id' => $complaint->id,
+            'old_status' => $oldStatus,
+            'new_status' => $newStatus,
+            'changed_by_id' => Auth::id(),
+            'changed_at' => now(),
+        ]);
+
+        // Update complaint
+        $complaint->status = $newStatus;
+        if ($newStatus === 'resolved') {
+            $complaint->resolved_at = now();
+        }
+        $complaint->save();
+
+        return response()->json($complaint, 200);
     }
 
     /**
