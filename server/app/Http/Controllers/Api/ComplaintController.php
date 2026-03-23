@@ -42,9 +42,12 @@ class ComplaintController extends Controller
         ]);
 
         $complaint = Complaint::create([
-            ...$validated,
-            'tenant_id' => Auth::id(),
+            'title' => $validated['title'],
+            'category' => $validated['category'],
+            'description' => $validated['description'],
             'priority' => $validated['priority'] ?? 'medium',
+            'status' => 'pending',
+            'tenant_id' => Auth::id(),
         ]);
 
         return response()->json($complaint, 201);
