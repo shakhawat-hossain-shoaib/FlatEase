@@ -47,6 +47,35 @@ class ApiClient {
     await this.client.get('/sanctum/csrf-cookie');
   }
 
+  private getCookieValue(name: string): string | undefined {
+    if (typeof document === 'undefined') {
+      return undefined;
+    }
+
+    const prefix = `${name}=`;
+    const raw = document.cookie
+      .split(';')
+      .map((item) => item.trim())
+      .find((item) => item.startsWith(prefix));
+
+    if (!raw) {
+      return undefined;
+    }
+
+    return decodeURIComponent(raw.slice(prefix.length));
+  }
+
+  private async csrfHeaders() {
+    await this.ensureCsrfCookie();
+    const token = this.getCookieValue('XSRF-TOKEN');
+
+    return token
+      ? {
+          'X-XSRF-TOKEN': token,
+        }
+      : undefined;
+  }
+
   // currently, only fetches 1 session greater than current time
   async getSession() {
     try {
@@ -59,13 +88,13 @@ class ApiClient {
 
   async createSession(name: string, duration: number, username: string, password: string) {
     try {
-      await this.ensureCsrfCookie();
+      const headers = await this.csrfHeaders();
 
       if (!username || !password) {
         toast.error('Credentials are required');
         return;
       }
-      const response = await this.client.post('/api/session', { name, duration, username, password });
+      const response = await this.client.post('/api/session', { name, duration, username, password }, { headers });
       return response.data;
     } catch (error) {
       this.handleError(error);
@@ -74,14 +103,14 @@ class ApiClient {
 
   async updateSession(session_id: number, active: boolean, username: string, password: string) {
     try {
-      await this.ensureCsrfCookie();
+      const headers = await this.csrfHeaders();
 
       if (!username || !password) {
         toast.error('Credentials are required');
         return;
       }
 
-      const response = await this.client.put('/api/session', { session_id, active, username, password });
+      const response = await this.client.put('/api/session', { session_id, active, username, password }, { headers });
       return response.data;
     } catch (error) {
       this.handleError(error);
@@ -99,13 +128,13 @@ class ApiClient {
 
   async viewSessions(username: string, password: string) {
     try {
-      await this.ensureCsrfCookie();
+      const headers = await this.csrfHeaders();
 
       if (!username || !password) {
         toast.error('Credentials are required');
         return;
       }
-      const response = await this.client.post('/api/sessions', { username, password });
+      const response = await this.client.post('/api/sessions', { username, password }, { headers });
       return response.data;
     } catch (error) {
       this.handleError(error);
@@ -114,14 +143,14 @@ class ApiClient {
 
   async register(name: string, email: string, password: string, password_confirmation: string) {
     try {
-      await this.ensureCsrfCookie();
+      const headers = await this.csrfHeaders();
 
       const response = await this.client.post('/register', {
         name,
         email,
         password,
         password_confirmation,
-      });
+      }, { headers });
 
       return response.data;
     } catch (error) {
@@ -132,12 +161,12 @@ class ApiClient {
 
   async login(email: string, password: string): Promise<LoginResponse | undefined> {
     try {
-      await this.ensureCsrfCookie();
+      const headers = await this.csrfHeaders();
 
       const response = await this.client.post('/login', {
         email,
         password,
-      });
+      }, { headers });
 
       return response.data;
     } catch (error) {
@@ -148,9 +177,9 @@ class ApiClient {
 
   async logout(): Promise<BasicApiResponse | undefined> {
     try {
-      await this.ensureCsrfCookie();
+      const headers = await this.csrfHeaders();
 
-      const response = await this.client.post('/logout');
+      const response = await this.client.post('/logout', {}, { headers });
       return response.data;
     } catch (error) {
       this.handleError(error);
@@ -166,7 +195,7 @@ class ApiClient {
     role: 'admin' | 'tenant'
   ): Promise<AdminCreateUserResponse | undefined> {
     try {
-      await this.ensureCsrfCookie();
+      const headers = await this.csrfHeaders();
 
       const response = await this.client.post('/api/admin/users', {
         name,
@@ -174,7 +203,7 @@ class ApiClient {
         password,
         password_confirmation,
         role,
-      });
+      }, { headers });
 
       return response.data;
     } catch (error) {
