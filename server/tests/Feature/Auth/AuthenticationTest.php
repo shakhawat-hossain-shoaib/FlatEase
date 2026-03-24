@@ -13,7 +13,9 @@ class AuthenticationTest extends TestCase
     {
         parent::setUp();
 
+        Schema::disableForeignKeyConstraints();
         Schema::dropIfExists('users');
+        Schema::enableForeignKeyConstraints();
         Schema::create('users', function (Blueprint $table) {
             $table->id();
             $table->string('name');
@@ -21,14 +23,16 @@ class AuthenticationTest extends TestCase
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
             $table->string('remember_token', 100)->nullable();
-            $table->enum('role', ['admin', 'tenant'])->default('tenant');
+            $table->enum('role', ['admin', 'tenant', 'technician'])->default('tenant');
             $table->timestamps();
         });
     }
 
     protected function tearDown(): void
     {
+        Schema::disableForeignKeyConstraints();
         Schema::dropIfExists('users');
+        Schema::enableForeignKeyConstraints();
         parent::tearDown();
     }
 

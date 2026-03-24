@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use App\Models\Complaint;
+use App\Models\ComplaintAssignmentHistory;
+use App\Models\ComplaintComment;
 use App\Models\ComplaintStatusHistory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -14,6 +16,7 @@ class ComplaintApiTest extends TestCase
 
     protected $tenant;
     protected $admin;
+    protected $technician;
     protected $otherTenant;
 
     protected function setUp(): void
@@ -22,11 +25,12 @@ class ComplaintApiTest extends TestCase
 
         $this->tenant = User::factory()->create(['role' => 'tenant']);
         $this->admin = User::factory()->create(['role' => 'admin']);
+        $this->technician = User::factory()->create(['role' => 'technician']);
         $this->otherTenant = User::factory()->create(['role' => 'tenant']);
     }
 
     // POST create complaint tests
-    
+
     public function test_unauthenticated_cannot_create_complaint()
     {
         $response = $this->postJson('/api/complaints', [
@@ -206,6 +210,404 @@ class ComplaintApiTest extends TestCase
 
         $response->assertStatus(200);
         $this->assertCount(2, $response->json('data'));
+    }
+
+    // PATCH assignment tests
+
+    public function test_admin_can_assign_complaint_to_technician()
+    {
+        $complaint = Complaint::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'status' => 'in_progress',
+            'assigned_technician_id' => null,
+        ]);
+
+        $response = $this->actingAs($this->admin)->patchJson(
+            "/api/admin/complaints/{$complaint->id}/assign",
+            ['assigned_technician_id' => $this->technician->id]
+        );
+
+        $response->assertStatus(200);
+        $this->assertEquals($this->technician->id, $response->json('assigned_technician_id'));
+        $this->assertEquals($this->admin->id, $response->json('assigned_by_id'));
+        $this->assertDatabaseHas('complaints', [
+            'id' => $complaint->id,
+            'assigned_technician_id' => $this->technician->id,
+            'assigned_by_id' => $this->admin->id,
+        ]);
+    }
+
+    public function test_non_admin_cannot_assign_complaint()
+    {
+        $complaint = Complaint::factory()->create(['tenant_id' => $this->tenant->id]);
+
+        $response = $this->actingAs($this->tenant)->patchJson(
+            "/api/admin/complaints/{$complaint->id}/assign",
+            ['assigned_technician_id' => $this->technician->id]
+        );
+
+        $response->assertStatus(403);
+    }
+
+    public function test_assignment_rejects_invalid_assignee_role()
+    {
+        $complaint = Complaint::factory()->create(['tenant_id' => $this->tenant->id]);
+
+        $response = $this->actingAs($this->admin)->patchJson(
+            "/api/admin/complaints/{$complaint->id}/assign",
+            ['assigned_technician_id' => $this->otherTenant->id]
+        );
+
+        $response->assertStatus(422);
+    }
+
+    public function test_assignment_on_pending_auto_transitions_to_in_progress_and_creates_history()
+    {
+        $complaint = Complaint::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'status' => 'pending',
+        ]);
+
+        $response = $this->actingAs($this->admin)->patchJson(
+            "/api/admin/complaints/{$complaint->id}/assign",
+            ['assigned_technician_id' => $this->technician->id]
+        );
+
+        $response->assertStatus(200);
+        $this->assertEquals('in_progress', $response->json('status'));
+
+        $this->assertDatabaseHas('complaint_status_histories', [
+            'complaint_id' => $complaint->id,
+            'old_status' => 'pending',
+            'new_status' => 'in_progress',
+            'changed_by_id' => $this->admin->id,
+        ]);
+    }
+
+    public function test_reassignment_creates_audit_history_entries()
+    {
+        $secondTechnician = User::factory()->create(['role' => 'technician']);
+        $complaint = Complaint::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'status' => 'in_progress',
+        ]);
+
+        $this->actingAs($this->admin)->patchJson(
+            "/api/admin/complaints/{$complaint->id}/assign",
+            ['assigned_technician_id' => $this->technician->id]
+        )->assertStatus(200);
+
+        $this->actingAs($this->admin)->patchJson(
+            "/api/admin/complaints/{$complaint->id}/assign",
+            ['assigned_technician_id' => $secondTechnician->id]
+        )->assertStatus(200);
+
+        $this->assertEquals(2, ComplaintAssignmentHistory::where('complaint_id', $complaint->id)->count());
+
+        $this->assertDatabaseHas('complaint_assignment_histories', [
+            'complaint_id' => $complaint->id,
+            'previous_assigned_technician_id' => $this->technician->id,
+            'new_assigned_technician_id' => $secondTechnician->id,
+            'assigned_by_id' => $this->admin->id,
+        ]);
+    }
+
+    // Complaint comments tests
+
+    public function test_unauthenticated_cannot_post_complaint_comment()
+    {
+        $complaint = Complaint::factory()->create(['tenant_id' => $this->tenant->id]);
+
+        $response = $this->postJson("/api/complaints/{$complaint->id}/comments", [
+            'comment' => 'Checking this issue.',
+        ]);
+
+        $response->assertStatus(401);
+    }
+
+    public function test_owner_admin_and_assigned_technician_can_post_comments()
+    {
+        $complaint = Complaint::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'assigned_technician_id' => $this->technician->id,
+            'status' => 'in_progress',
+        ]);
+
+        $this->actingAs($this->tenant)->postJson("/api/complaints/{$complaint->id}/comments", [
+            'comment' => 'Owner comment',
+        ])->assertStatus(201);
+
+        $this->actingAs($this->admin)->postJson("/api/complaints/{$complaint->id}/comments", [
+            'comment' => 'Admin comment',
+        ])->assertStatus(201);
+
+        $this->actingAs($this->technician)->postJson("/api/complaints/{$complaint->id}/comments", [
+            'comment' => 'Technician comment',
+        ])->assertStatus(201);
+
+        $this->assertEquals(3, ComplaintComment::where('complaint_id', $complaint->id)->count());
+    }
+
+    public function test_unauthorized_user_cannot_post_or_list_comments()
+    {
+        $outsider = User::factory()->create(['role' => 'tenant']);
+        $complaint = Complaint::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'assigned_technician_id' => $this->technician->id,
+            'status' => 'in_progress',
+        ]);
+
+        $postResponse = $this->actingAs($outsider)->postJson("/api/complaints/{$complaint->id}/comments", [
+            'comment' => 'I should not be able to post',
+        ]);
+        $postResponse->assertStatus(403);
+
+        $getResponse = $this->actingAs($outsider)->getJson("/api/complaints/{$complaint->id}/comments");
+        $getResponse->assertStatus(403);
+    }
+
+    public function test_comment_validation_rejects_blank_values()
+    {
+        $complaint = Complaint::factory()->create(['tenant_id' => $this->tenant->id]);
+
+        $response = $this->actingAs($this->tenant)->postJson("/api/complaints/{$complaint->id}/comments", [
+            'comment' => '   ',
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonStructure(['errors']);
+    }
+
+    public function test_comment_listing_returns_oldest_to_newest_for_authorized_user()
+    {
+        $complaint = Complaint::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'assigned_technician_id' => $this->technician->id,
+            'status' => 'in_progress',
+        ]);
+
+        $first = ComplaintComment::create([
+            'complaint_id' => $complaint->id,
+            'user_id' => $this->tenant->id,
+            'comment' => 'First',
+            'created_at' => now()->subMinutes(10),
+            'updated_at' => now()->subMinutes(10),
+        ]);
+
+        $second = ComplaintComment::create([
+            'complaint_id' => $complaint->id,
+            'user_id' => $this->admin->id,
+            'comment' => 'Second',
+            'created_at' => now()->subMinutes(5),
+            'updated_at' => now()->subMinutes(5),
+        ]);
+
+        $response = $this->actingAs($this->technician)->getJson("/api/complaints/{$complaint->id}/comments");
+
+        $response->assertStatus(200);
+        $this->assertEquals($first->id, $response->json('0.id'));
+        $this->assertEquals($second->id, $response->json('1.id'));
+    }
+
+    // Notifications tests
+
+    public function test_assignment_triggers_notifications_for_tenant_and_assigned_technician()
+    {
+        $complaint = Complaint::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'status' => 'pending',
+        ]);
+
+        $this->actingAs($this->admin)->patchJson(
+            "/api/admin/complaints/{$complaint->id}/assign",
+            ['assigned_technician_id' => $this->technician->id]
+        )->assertStatus(200);
+
+        $tenantNotification = $this->tenant->fresh()->notifications()->latest()->first();
+        $technicianNotification = $this->technician->fresh()->notifications()->latest()->first();
+
+        $this->assertNotNull($tenantNotification);
+        $this->assertNotNull($technicianNotification);
+        $this->assertSame('assigned', data_get($tenantNotification->data, 'type'));
+        $this->assertSame('assigned', data_get($technicianNotification->data, 'type'));
+    }
+
+    public function test_status_update_triggers_notifications_for_relevant_users()
+    {
+        $complaint = Complaint::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'assigned_technician_id' => $this->technician->id,
+            'status' => 'in_progress',
+        ]);
+
+        $this->actingAs($this->admin)->patchJson(
+            "/api/admin/complaints/{$complaint->id}/status",
+            ['new_status' => 'resolved']
+        )->assertStatus(200);
+
+        $this->assertSame('status_changed', data_get($this->tenant->fresh()->notifications()->latest()->first()->data, 'type'));
+        $this->assertSame('status_changed', data_get($this->technician->fresh()->notifications()->latest()->first()->data, 'type'));
+    }
+
+    public function test_comment_creation_triggers_notification_for_other_relevant_user_only()
+    {
+        $complaint = Complaint::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'assigned_technician_id' => $this->technician->id,
+            'status' => 'in_progress',
+        ]);
+
+        $this->actingAs($this->tenant)->postJson("/api/complaints/{$complaint->id}/comments", [
+            'comment' => 'Please fix this soon.',
+        ])->assertStatus(201);
+
+        $this->assertSame(0, $this->tenant->fresh()->notifications()->count());
+        $this->assertSame('comment_added', data_get($this->technician->fresh()->notifications()->latest()->first()->data, 'type'));
+    }
+
+    public function test_unauthorized_actions_do_not_trigger_notifications()
+    {
+        $outsider = User::factory()->create(['role' => 'tenant']);
+        $complaint = Complaint::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'assigned_technician_id' => $this->technician->id,
+            'status' => 'in_progress',
+        ]);
+
+        $before = $this->technician->fresh()->notifications()->count() + $this->tenant->fresh()->notifications()->count();
+
+        $this->actingAs($outsider)->postJson("/api/complaints/{$complaint->id}/comments", [
+            'comment' => 'Unauthorized post attempt',
+        ])->assertStatus(403);
+
+        $after = $this->technician->fresh()->notifications()->count() + $this->tenant->fresh()->notifications()->count();
+        $this->assertSame($before, $after);
+    }
+
+    public function test_notification_list_is_scoped_to_authenticated_user()
+    {
+        $complaint = Complaint::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'assigned_technician_id' => $this->technician->id,
+            'status' => 'in_progress',
+        ]);
+
+        $this->actingAs($this->tenant)->postJson("/api/complaints/{$complaint->id}/comments", [
+            'comment' => 'Tenant message',
+        ])->assertStatus(201);
+
+        $this->actingAs($this->technician)->postJson("/api/complaints/{$complaint->id}/comments", [
+            'comment' => 'Tech response',
+        ])->assertStatus(201);
+
+        $tenantResponse = $this->actingAs($this->tenant)->getJson('/api/notifications');
+        $tenantResponse->assertStatus(200);
+        $this->assertSame(1, count($tenantResponse->json('data')));
+
+        $technicianResponse = $this->actingAs($this->technician)->getJson('/api/notifications');
+        $technicianResponse->assertStatus(200);
+        $this->assertSame(1, count($technicianResponse->json('data')));
+    }
+
+    public function test_user_can_mark_own_notification_as_read()
+    {
+        $complaint = Complaint::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'assigned_technician_id' => $this->technician->id,
+            'status' => 'in_progress',
+        ]);
+
+        $this->actingAs($this->tenant)->postJson("/api/complaints/{$complaint->id}/comments", [
+            'comment' => 'Tenant update',
+        ])->assertStatus(201);
+
+        $notification = $this->technician->fresh()->notifications()->latest()->first();
+        $this->assertNotNull($notification);
+        $this->assertNull($notification->read_at);
+
+        $response = $this->actingAs($this->technician)
+            ->patchJson("/api/notifications/{$notification->id}/read");
+
+        $response->assertStatus(200);
+        $this->assertNotNull($this->technician->fresh()->notifications()->where('id', $notification->id)->first()->read_at);
+    }
+
+    public function test_user_cannot_mark_other_users_notification_as_read()
+    {
+        $complaint = Complaint::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'assigned_technician_id' => $this->technician->id,
+            'status' => 'in_progress',
+        ]);
+
+        $this->actingAs($this->tenant)->postJson("/api/complaints/{$complaint->id}/comments", [
+            'comment' => 'Another tenant update',
+        ])->assertStatus(201);
+
+        $notification = $this->technician->fresh()->notifications()->latest()->first();
+        $this->assertNotNull($notification);
+
+        $this->actingAs($this->tenant)
+            ->patchJson("/api/notifications/{$notification->id}/read")
+            ->assertStatus(404);
+    }
+
+    // Summary metrics tests
+
+    public function test_non_admin_cannot_access_admin_complaint_summary()
+    {
+        $response = $this->actingAs($this->tenant)->getJson('/api/admin/complaints/summary');
+        $response->assertStatus(403);
+    }
+
+    public function test_admin_complaint_summary_returns_accurate_counts()
+    {
+        Complaint::factory()->create(['status' => 'pending', 'priority' => 'high']);
+        Complaint::factory()->create(['status' => 'in_progress', 'priority' => 'medium']);
+        Complaint::factory()->create(['status' => 'resolved', 'priority' => 'high']);
+
+        $response = $this->actingAs($this->admin)->getJson('/api/admin/complaints/summary');
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'total' => 3,
+                'pending' => 1,
+                'in_progress' => 1,
+                'resolved' => 1,
+                'high_priority' => 2,
+            ]);
+    }
+
+    public function test_admin_complaint_summary_applies_date_range_filter()
+    {
+        Complaint::factory()->create([
+            'status' => 'pending',
+            'priority' => 'high',
+            'created_at' => now()->subDays(7),
+            'updated_at' => now()->subDays(7),
+        ]);
+
+        Complaint::factory()->create([
+            'status' => 'resolved',
+            'priority' => 'low',
+            'created_at' => now()->subDays(1),
+            'updated_at' => now()->subDays(1),
+        ]);
+
+        $from = now()->subDays(2)->toDateString();
+        $to = now()->toDateString();
+
+        $response = $this->actingAs($this->admin)
+            ->getJson("/api/admin/complaints/summary?from={$from}&to={$to}");
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'total' => 1,
+                'pending' => 0,
+                'in_progress' => 0,
+                'resolved' => 1,
+                'high_priority' => 0,
+            ]);
     }
 
     // PATCH status update tests
