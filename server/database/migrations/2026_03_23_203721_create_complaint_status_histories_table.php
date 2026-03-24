@@ -18,10 +18,17 @@ class CreateComplaintStatusHistoriesTable extends Migration
             $table->foreignId('complaint_id')->constrained('complaints')->cascadeOnDelete();
             $table->enum('old_status', ['pending', 'in_progress', 'resolved'])->nullable();
             $table->enum('new_status', ['pending', 'in_progress', 'resolved']);
-            $table->foreignId('changed_by_id')->constrained('users')->cascadeOnDelete();
+            $table->unsignedBigInteger('changed_by_id');
             $table->timestamp('changed_at');
             $table->index(['complaint_id', 'changed_at']);
             $table->index('complaint_id');
+
+            if (Schema::hasTable('users')) {
+                $table->foreign('changed_by_id', 'csh_changed_by_fk')
+                    ->references('id')
+                    ->on('users')
+                    ->onDelete('cascade');
+            }
         });
     }
 

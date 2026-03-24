@@ -15,8 +15,8 @@ class CreateComplaintsTable extends Migration
     {
         Schema::create('complaints', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('tenant_id')->constrained('users')->cascadeOnDelete();
-            $table->foreignId('assigned_technician_id')->nullable()->constrained('users')->nullOnDelete();
+            $table->unsignedBigInteger('tenant_id');
+            $table->unsignedBigInteger('assigned_technician_id')->nullable();
             $table->string('title', 160);
             $table->string('category', 80);
             $table->text('description');
@@ -28,6 +28,18 @@ class CreateComplaintsTable extends Migration
             $table->index(['tenant_id', 'status']);
             $table->index(['status', 'priority']);
             $table->index('assigned_technician_id');
+
+            if (Schema::hasTable('users')) {
+                $table->foreign('tenant_id', 'complaints_tenant_fk')
+                    ->references('id')
+                    ->on('users')
+                    ->onDelete('cascade');
+
+                $table->foreign('assigned_technician_id', 'complaints_assigned_tech_fk')
+                    ->references('id')
+                    ->on('users')
+                    ->onDelete('set null');
+            }
         });
     }
 

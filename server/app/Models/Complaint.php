@@ -12,6 +12,8 @@ class Complaint extends Model
     protected $fillable = [
         'tenant_id',
         'assigned_technician_id',
+        'assigned_by_id',
+        'assigned_at',
         'title',
         'category',
         'description',
@@ -21,6 +23,7 @@ class Complaint extends Model
     ];
 
     protected $casts = [
+        'assigned_at' => 'datetime',
         'resolved_at' => 'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
@@ -36,6 +39,11 @@ class Complaint extends Model
         return $this->belongsTo(User::class, 'assigned_technician_id');
     }
 
+    public function assignedBy()
+    {
+        return $this->belongsTo(User::class, 'assigned_by_id');
+    }
+
     public function statusHistories()
     {
         return $this->hasMany(ComplaintStatusHistory::class);
@@ -44,5 +52,10 @@ class Complaint extends Model
     public function comments()
     {
         return $this->hasMany(ComplaintComment::class);
+    }
+
+    public function assignmentHistories()
+    {
+        return $this->hasMany(ComplaintAssignmentHistory::class);
     }
 }
