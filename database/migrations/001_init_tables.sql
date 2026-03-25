@@ -9,3 +9,13 @@ CREATE TABLE IF NOT EXISTS users (
     created_at TIMESTAMP NULL,
     updated_at TIMESTAMP NULL
 );
+
+CREATE TABLE IF NOT EXISTS users (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    role ENUM('admin', 'tenant') DEFAULT 'tenant',
+    created_at TIMESTAMP NULL,
+    updated_at TIMESTAMP NULL
+);
