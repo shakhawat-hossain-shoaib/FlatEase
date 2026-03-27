@@ -15,20 +15,24 @@ class CreateAdminUserCommandTest extends TestCase
     {
         parent::setUp();
 
+        Schema::disableForeignKeyConstraints();
         Schema::dropIfExists('users');
+        Schema::enableForeignKeyConstraints();
         Schema::create('users', function (Blueprint $table) {
             $table->id();
             $table->string('name');
             $table->string('email')->unique();
             $table->string('password');
-            $table->enum('role', ['admin', 'tenant'])->default('tenant');
+            $table->enum('role', ['admin', 'tenant', 'technician'])->default('tenant');
             $table->timestamps();
         });
     }
 
     protected function tearDown(): void
     {
+        Schema::disableForeignKeyConstraints();
         Schema::dropIfExists('users');
+        Schema::enableForeignKeyConstraints();
         parent::tearDown();
     }
 

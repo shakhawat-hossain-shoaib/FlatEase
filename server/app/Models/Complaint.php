@@ -14,7 +14,6 @@ class Complaint extends Model
         'assigned_technician_id',
         'assigned_by_id',
         'assigned_at',
-        'sla_due_at',
         'title',
         'category',
         'description',
@@ -25,7 +24,6 @@ class Complaint extends Model
 
     protected $casts = [
         'assigned_at' => 'datetime',
-        'sla_due_at' => 'datetime',
         'resolved_at' => 'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',

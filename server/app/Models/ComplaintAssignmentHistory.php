@@ -17,7 +17,6 @@ class ComplaintAssignmentHistory extends Model
         'new_assigned_technician_id',
         'assigned_by_id',
         'assigned_at',
-        'reason',
     ];
 
     protected $casts = [
@@ -29,12 +28,12 @@ class ComplaintAssignmentHistory extends Model
         return $this->belongsTo(Complaint::class);
     }
 
-    public function previousAssignee()
+    public function previousAssignedTechnician()
     {
         return $this->belongsTo(User::class, 'previous_assigned_technician_id');
     }
 
-    public function newAssignee()
+    public function newAssignedTechnician()
     {
         return $this->belongsTo(User::class, 'new_assigned_technician_id');
     }

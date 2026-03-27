@@ -16,7 +16,9 @@ class PasswordResetTest extends TestCase
         parent::setUp();
 
         Schema::dropIfExists('password_resets');
+        Schema::disableForeignKeyConstraints();
         Schema::dropIfExists('users');
+        Schema::enableForeignKeyConstraints();
 
         Schema::create('users', function (Blueprint $table) {
             $table->id();
@@ -25,7 +27,7 @@ class PasswordResetTest extends TestCase
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
             $table->string('remember_token', 100)->nullable();
-            $table->enum('role', ['admin', 'tenant'])->default('tenant');
+            $table->enum('role', ['admin', 'tenant', 'technician'])->default('tenant');
             $table->timestamps();
         });
 
@@ -39,7 +41,9 @@ class PasswordResetTest extends TestCase
     protected function tearDown(): void
     {
         Schema::dropIfExists('password_resets');
+        Schema::disableForeignKeyConstraints();
         Schema::dropIfExists('users');
+        Schema::enableForeignKeyConstraints();
         parent::tearDown();
     }
 

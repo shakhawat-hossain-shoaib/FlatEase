@@ -164,7 +164,6 @@ class ApiClient {
 
     return token
       ? {
-          'X-CSRF-TOKEN': token,
           'X-XSRF-TOKEN': token,
         }
       : undefined;

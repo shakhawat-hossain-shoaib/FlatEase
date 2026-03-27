@@ -16,11 +16,18 @@ class CreateComplaintCommentsTable extends Migration
         Schema::create('complaint_comments', function (Blueprint $table) {
             $table->id();
             $table->foreignId('complaint_id')->constrained('complaints')->cascadeOnDelete();
-            $table->foreignId('user_id')->constrained('users')->cascadeOnDelete();
+            $table->unsignedBigInteger('user_id');
             $table->text('comment');
             $table->timestamps();
             $table->index('complaint_id');
             $table->index('user_id');
+
+            if (Schema::hasTable('users')) {
+                $table->foreign('user_id', 'cc_user_fk')
+                    ->references('id')
+                    ->on('users')
+                    ->onDelete('cascade');
+            }
         });
     }
 

@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\SessionController;
 use App\Http\Controllers\Admin\UserManagementController;
 use App\Http\Controllers\Api\ComplaintController;
+use App\Http\Controllers\Api\NotificationController;
 
 /*
 |--------------------------------------------------------------------------
@@ -38,6 +39,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/complaints/{id}', [ComplaintController::class, 'show']);
     Route::get('/complaints/{id}/comments', [ComplaintController::class, 'comments']);
     Route::post('/complaints/{id}/comments', [ComplaintController::class, 'addComment']);
+    Route::get('/notifications', [NotificationController::class, 'index']);
+    Route::patch('/notifications/{id}/read', [NotificationController::class, 'markRead']);
 });
 
 // Admin complaint routes

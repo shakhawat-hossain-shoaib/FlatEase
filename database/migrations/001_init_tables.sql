@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS users (
     name VARCHAR(255) NOT NULL,
     email VARCHAR(255) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL,
-    role ENUM('admin', 'tenant') DEFAULT 'tenant',
+    role ENUM('admin', 'tenant', 'technician') DEFAULT 'tenant',
     created_at TIMESTAMP NULL,
     updated_at TIMESTAMP NULL
 );
