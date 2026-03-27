@@ -83,6 +83,17 @@ class Handler extends ExceptionHandler
         return response()->json([
             'success' => false,
             'message' => $exception->getMessage() ?: 'An unexpected error occurred.'
-        ], $exception->getCode() ?: 500);
+        ], $this->resolveStatusCode($exception));
+    }
+
+    private function resolveStatusCode(Throwable $exception): int
+    {
+        $code = $exception->getCode();
+
+        if (is_int($code) && $code >= 100 && $code <= 599) {
+            return $code;
+        }
+
+        return 500;
     }
 }

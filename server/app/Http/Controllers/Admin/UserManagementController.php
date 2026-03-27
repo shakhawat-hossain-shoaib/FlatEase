@@ -11,6 +11,17 @@ use Illuminate\Validation\Rules;
 
 class UserManagementController extends Controller
 {
+    public function assignable()
+    {
+        $users = User::query()
+            ->whereIn('role', ['admin', 'technician'])
+            ->select(['id', 'name', 'email', 'role'])
+            ->orderBy('name')
+            ->get();
+
+        return response()->json($users, 200);
+    }
+
     /**
      * Create a user from admin context.
      */

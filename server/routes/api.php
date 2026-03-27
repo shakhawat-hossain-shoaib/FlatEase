@@ -27,6 +27,7 @@ Route::middleware(['auth:sanctum', 'check.admin'])->group(function () {
     Route::post('/session', [SessionController::class, 'createSession']);
     Route::put('/session', [SessionController::class, 'updateSession']);
     Route::post('/sessions', [SessionController::class, 'viewSessions']);
+    Route::get('/admin/users/assignable', [UserManagementController::class, 'assignable']);
     Route::post('/admin/users', [UserManagementController::class, 'store']);
 });
 Route::post('/attendance', [SessionController::class, 'submitAttendance']);
