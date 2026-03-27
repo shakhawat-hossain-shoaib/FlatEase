@@ -153,6 +153,17 @@ class ApiClient {
       const response = await this.client.post('/logout');
       return response.data;
     } catch (error) {
+      const status = axios.isAxiosError(error) ? error.response?.status : undefined;
+
+      // Logout should be idempotent from the UI perspective.
+      // If the backend session is already gone, avoid showing a noisy toast.
+      if (status === 401 || status === 419) {
+        return {
+          success: true,
+          message: 'Already logged out.',
+        };
+      }
+
       this.handleError(error);
       return undefined;
     }
