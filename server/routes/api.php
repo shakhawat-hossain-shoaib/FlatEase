@@ -26,6 +26,7 @@ Route::middleware(['auth:sanctum', 'check.admin'])->group(function () {
     Route::post('/session', [SessionController::class, 'createSession']);
     Route::put('/session', [SessionController::class, 'updateSession']);
     Route::post('/sessions', [SessionController::class, 'viewSessions']);
+    Route::get('/admin/users/assignable', [UserManagementController::class, 'assignable']);
     Route::post('/admin/users', [UserManagementController::class, 'store']);
 });
 Route::post('/attendance', [SessionController::class, 'submitAttendance']);
@@ -35,10 +36,14 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/complaints', [ComplaintController::class, 'index']);
     Route::post('/complaints', [ComplaintController::class, 'store']);
     Route::get('/complaints/{id}', [ComplaintController::class, 'show']);
+    Route::get('/complaints/{id}/comments', [ComplaintController::class, 'comments']);
+    Route::post('/complaints/{id}/comments', [ComplaintController::class, 'addComment']);
 });
 
 // Admin complaint routes
 Route::middleware(['auth:sanctum', 'check.admin'])->group(function () {
     Route::get('/admin/complaints', [ComplaintController::class, 'adminIndex']);
+    Route::get('/admin/complaints/summary', [ComplaintController::class, 'summary']);
     Route::patch('/admin/complaints/{id}/status', [ComplaintController::class, 'updateStatus']);
+    Route::patch('/admin/complaints/{id}/assign', [ComplaintController::class, 'assign']);
 });

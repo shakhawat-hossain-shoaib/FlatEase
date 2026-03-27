@@ -30,6 +30,99 @@ export type AdminCreateUserResponse = {
   };
 };
 
+export type ComplaintStatus = 'pending' | 'in_progress' | 'resolved';
+export type ComplaintPriority = 'low' | 'medium' | 'high';
+
+export type ComplaintEntity = {
+  id: number;
+  tenant_id: number;
+  assigned_technician_id: number | null;
+  assigned_by_id?: number | null;
+  assigned_at?: string | null;
+  sla_due_at?: string | null;
+  title: string;
+  category: string;
+  description: string;
+  priority: ComplaintPriority;
+  status: ComplaintStatus;
+  resolved_at?: string | null;
+  created_at: string;
+  updated_at: string;
+  tenant?: {
+    id: number;
+    name: string;
+    email: string;
+    role: string;
+  };
+  assigned_technician?: {
+    id: number;
+    name: string;
+    email: string;
+    role: string;
+  };
+  assignedTechnician?: {
+    id: number;
+    name: string;
+    email: string;
+    role: string;
+  };
+  status_histories?: Array<{
+    id: number;
+    old_status: ComplaintStatus | null;
+    new_status: ComplaintStatus;
+    changed_by_id: number;
+    changed_at: string;
+    reason?: string | null;
+  }>;
+  statusHistories?: Array<{
+    id: number;
+    old_status: ComplaintStatus | null;
+    new_status: ComplaintStatus;
+    changed_by_id: number;
+    changed_at: string;
+    reason?: string | null;
+  }>;
+};
+
+export type PaginatedResponse<T> = {
+  data: T[];
+  total: number;
+  per_page: number;
+  current_page: number;
+  last_page: number;
+};
+
+export type ComplaintCommentEntity = {
+  id: number;
+  complaint_id: number;
+  user_id: number;
+  comment: string;
+  is_internal?: boolean;
+  created_at: string;
+  updated_at: string;
+  user?: {
+    id: number;
+    name: string;
+    email: string;
+    role: string;
+  };
+};
+
+export type AssignableUser = {
+  id: number;
+  name: string;
+  email: string;
+  role: 'admin' | 'technician';
+};
+
+export type ComplaintSummary = {
+  total: number;
+  pending: number;
+  in_progress: number;
+  resolved: number;
+  high_priority: number;
+};
+
 class ApiClient {
   private client: AxiosInstance;
 
@@ -47,6 +140,36 @@ class ApiClient {
     await this.client.get('/sanctum/csrf-cookie');
   }
 
+  private getCookieValue(name: string): string | undefined {
+    if (typeof document === 'undefined') {
+      return undefined;
+    }
+
+    const prefix = `${name}=`;
+    const raw = document.cookie
+      .split(';')
+      .map((item) => item.trim())
+      .find((item) => item.startsWith(prefix));
+
+    if (!raw) {
+      return undefined;
+    }
+
+    return decodeURIComponent(raw.slice(prefix.length));
+  }
+
+  private async csrfHeaders() {
+    await this.ensureCsrfCookie();
+    const token = this.getCookieValue('XSRF-TOKEN');
+
+    return token
+      ? {
+          'X-CSRF-TOKEN': token,
+          'X-XSRF-TOKEN': token,
+        }
+      : undefined;
+  }
+
   // currently, only fetches 1 session greater than current time
   async getSession() {
     try {
@@ -59,13 +182,13 @@ class ApiClient {
 
   async createSession(name: string, duration: number, username: string, password: string) {
     try {
-      await this.ensureCsrfCookie();
+      const headers = await this.csrfHeaders();
 
       if (!username || !password) {
         toast.error('Credentials are required');
         return;
       }
-      const response = await this.client.post('/api/session', { name, duration, username, password });
+      const response = await this.client.post('/api/session', { name, duration, username, password }, { headers });
       return response.data;
     } catch (error) {
       this.handleError(error);
@@ -74,14 +197,14 @@ class ApiClient {
 
   async updateSession(session_id: number, active: boolean, username: string, password: string) {
     try {
-      await this.ensureCsrfCookie();
+      const headers = await this.csrfHeaders();
 
       if (!username || !password) {
         toast.error('Credentials are required');
         return;
       }
 
-      const response = await this.client.put('/api/session', { session_id, active, username, password });
+      const response = await this.client.put('/api/session', { session_id, active, username, password }, { headers });
       return response.data;
     } catch (error) {
       this.handleError(error);
@@ -99,13 +222,13 @@ class ApiClient {
 
   async viewSessions(username: string, password: string) {
     try {
-      await this.ensureCsrfCookie();
+      const headers = await this.csrfHeaders();
 
       if (!username || !password) {
         toast.error('Credentials are required');
         return;
       }
-      const response = await this.client.post('/api/sessions', { username, password });
+      const response = await this.client.post('/api/sessions', { username, password }, { headers });
       return response.data;
     } catch (error) {
       this.handleError(error);
@@ -114,14 +237,14 @@ class ApiClient {
 
   async register(name: string, email: string, password: string, password_confirmation: string) {
     try {
-      await this.ensureCsrfCookie();
+      const headers = await this.csrfHeaders();
 
       const response = await this.client.post('/register', {
         name,
         email,
         password,
         password_confirmation,
-      });
+      }, { headers });
 
       return response.data;
     } catch (error) {
@@ -132,12 +255,12 @@ class ApiClient {
 
   async login(email: string, password: string): Promise<LoginResponse | undefined> {
     try {
-      await this.ensureCsrfCookie();
+      const headers = await this.csrfHeaders();
 
       const response = await this.client.post('/login', {
         email,
         password,
-      });
+      }, { headers });
 
       return response.data;
     } catch (error) {
@@ -148,9 +271,9 @@ class ApiClient {
 
   async logout(): Promise<BasicApiResponse | undefined> {
     try {
-      await this.ensureCsrfCookie();
+      const headers = await this.csrfHeaders();
 
-      const response = await this.client.post('/logout');
+      const response = await this.client.post('/logout', {}, { headers });
       return response.data;
     } catch (error) {
       const status = axios.isAxiosError(error) ? error.response?.status : undefined;
@@ -177,7 +300,7 @@ class ApiClient {
     role: 'admin' | 'tenant'
   ): Promise<AdminCreateUserResponse | undefined> {
     try {
-      await this.ensureCsrfCookie();
+      const headers = await this.csrfHeaders();
 
       const response = await this.client.post('/api/admin/users', {
         name,
@@ -185,8 +308,107 @@ class ApiClient {
         password,
         password_confirmation,
         role,
-      });
+      }, { headers });
 
+      return response.data;
+    } catch (error) {
+      this.handleError(error);
+      return undefined;
+    }
+  }
+
+  async getComplaints(role: 'Admin' | 'Tenant'): Promise<PaginatedResponse<ComplaintEntity> | undefined> {
+    try {
+      const endpoint = role === 'Admin' ? '/api/admin/complaints' : '/api/complaints';
+      const response = await this.client.get(endpoint);
+      return response.data;
+    } catch (error) {
+      this.handleError(error);
+      return undefined;
+    }
+  }
+
+  async createComplaint(payload: {
+    title: string;
+    category: string;
+    description: string;
+    priority: ComplaintPriority;
+  }): Promise<ComplaintEntity | undefined> {
+    try {
+      const headers = await this.csrfHeaders();
+      const response = await this.client.post('/api/complaints', payload, { headers });
+      return response.data;
+    } catch (error) {
+      this.handleError(error);
+      return undefined;
+    }
+  }
+
+  async updateComplaintStatus(
+    complaintId: number,
+    payload: { new_status: ComplaintStatus; reason?: string }
+  ): Promise<ComplaintEntity | undefined> {
+    try {
+      const headers = await this.csrfHeaders();
+      const response = await this.client.patch(`/api/admin/complaints/${complaintId}/status`, payload, { headers });
+      return response.data;
+    } catch (error) {
+      this.handleError(error);
+      return undefined;
+    }
+  }
+
+  async assignComplaint(
+    complaintId: number,
+    payload: { assigned_technician_id: number; sla_due_at?: string; reason?: string }
+  ): Promise<ComplaintEntity | undefined> {
+    try {
+      const headers = await this.csrfHeaders();
+      const response = await this.client.patch(`/api/admin/complaints/${complaintId}/assign`, payload, { headers });
+      return response.data;
+    } catch (error) {
+      this.handleError(error);
+      return undefined;
+    }
+  }
+
+  async getComplaintComments(complaintId: number): Promise<ComplaintCommentEntity[] | undefined> {
+    try {
+      const response = await this.client.get(`/api/complaints/${complaintId}/comments`);
+      return response.data;
+    } catch (error) {
+      this.handleError(error);
+      return undefined;
+    }
+  }
+
+  async addComplaintComment(
+    complaintId: number,
+    payload: { comment: string; is_internal?: boolean }
+  ): Promise<ComplaintCommentEntity | undefined> {
+    try {
+      const headers = await this.csrfHeaders();
+      const response = await this.client.post(`/api/complaints/${complaintId}/comments`, payload, { headers });
+      return response.data;
+    } catch (error) {
+      this.handleError(error);
+      return undefined;
+    }
+  }
+
+  async getAssignableUsers(): Promise<AssignableUser[] | undefined> {
+    try {
+      const response = await this.client.get('/api/admin/users/assignable');
+      return response.data;
+    } catch (error) {
+      this.handleError(error);
+      return undefined;
+    }
+  }
+
+  async getComplaintSummary(): Promise<ComplaintSummary | undefined> {
+    try {
+      const response = await this.client.get('/api/admin/complaints/summary');
       return response.data;
     } catch (error) {
       this.handleError(error);
@@ -208,7 +430,11 @@ class ApiClient {
           ? String(errorGroups[0][0])
           : undefined;
 
-      toastMessage = firstValidationMessage || data.message || `Request failed with status code ${status}`;
+      if (status === 419) {
+        toastMessage = 'CSRF token mismatch. Please refresh and sign in again.';
+      } else {
+        toastMessage = firstValidationMessage || data.message || `Request failed with status code ${status}`;
+      }
       console.error(`API Error: ${status} - ${toastMessage}`);
     } else if (error.request) {
       // Request was made, but no response was received

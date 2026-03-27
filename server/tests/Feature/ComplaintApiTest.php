@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use App\Models\Complaint;
+use App\Models\ComplaintComment;
 use App\Models\ComplaintStatusHistory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -15,6 +16,7 @@ class ComplaintApiTest extends TestCase
     protected $tenant;
     protected $admin;
     protected $otherTenant;
+    protected $technician;
 
     protected function setUp(): void
     {
@@ -23,6 +25,7 @@ class ComplaintApiTest extends TestCase
         $this->tenant = User::factory()->create(['role' => 'tenant']);
         $this->admin = User::factory()->create(['role' => 'admin']);
         $this->otherTenant = User::factory()->create(['role' => 'tenant']);
+        $this->technician = User::factory()->create(['role' => 'technician']);
     }
 
     // POST create complaint tests
@@ -301,5 +304,172 @@ class ComplaintApiTest extends TestCase
 
         $response->assertStatus(200);
         $this->assertEquals('resolved', $response->json('status'));
+    }
+
+    public function test_admin_can_get_complaint_summary()
+    {
+        Complaint::factory(2)->create(['status' => 'pending', 'priority' => 'high']);
+        Complaint::factory(1)->create(['status' => 'in_progress', 'priority' => 'medium']);
+        Complaint::factory(1)->create(['status' => 'resolved', 'priority' => 'low']);
+
+        $response = $this->actingAs($this->admin)->getJson('/api/admin/complaints/summary');
+
+        $response->assertStatus(200)
+            ->assertJsonStructure(['total', 'pending', 'in_progress', 'resolved', 'high_priority']);
+
+        $this->assertEquals(4, $response->json('total'));
+        $this->assertEquals(2, $response->json('pending'));
+        $this->assertEquals(1, $response->json('in_progress'));
+        $this->assertEquals(1, $response->json('resolved'));
+        $this->assertEquals(2, $response->json('high_priority'));
+    }
+
+    public function test_non_admin_cannot_get_complaint_summary()
+    {
+        $response = $this->actingAs($this->tenant)->getJson('/api/admin/complaints/summary');
+        $response->assertStatus(403);
+    }
+
+    public function test_admin_can_get_assignable_users_list()
+    {
+        $response = $this->actingAs($this->admin)->getJson('/api/admin/users/assignable');
+
+        $response->assertStatus(200);
+        $roles = collect($response->json())->pluck('role')->unique()->values()->all();
+        $this->assertContains('admin', $roles);
+        $this->assertContains('technician', $roles);
+        $this->assertNotContains('tenant', $roles);
+    }
+
+    public function test_admin_can_assign_complaint_and_assignment_history_is_created()
+    {
+        $complaint = Complaint::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'status' => 'pending',
+            'assigned_technician_id' => null,
+        ]);
+
+        $response = $this->actingAs($this->admin)->patchJson(
+            "/api/admin/complaints/{$complaint->id}/assign",
+            [
+                'assigned_technician_id' => $this->technician->id,
+                'reason' => 'Priority maintenance task',
+            ]
+        );
+
+        $response->assertStatus(200);
+        $this->assertEquals($this->technician->id, $response->json('assigned_technician_id'));
+        $this->assertEquals('in_progress', $response->json('status'));
+
+        $this->assertDatabaseHas('complaint_assignment_histories', [
+            'complaint_id' => $complaint->id,
+            'new_assigned_technician_id' => $this->technician->id,
+            'assigned_by_id' => $this->admin->id,
+            'reason' => 'Priority maintenance task',
+        ]);
+    }
+
+    public function test_assignment_rejects_tenant_as_assignee()
+    {
+        $complaint = Complaint::factory()->create(['tenant_id' => $this->tenant->id]);
+
+        $response = $this->actingAs($this->admin)->patchJson(
+            "/api/admin/complaints/{$complaint->id}/assign",
+            [
+                'assigned_technician_id' => $this->otherTenant->id,
+            ]
+        );
+
+        $response->assertStatus(422);
+    }
+
+    public function test_tenant_can_add_comment_to_own_complaint()
+    {
+        $complaint = Complaint::factory()->create(['tenant_id' => $this->tenant->id]);
+
+        $response = $this->actingAs($this->tenant)->postJson(
+            "/api/complaints/{$complaint->id}/comments",
+            [
+                'comment' => 'Please fix this quickly.',
+            ]
+        );
+
+        $response->assertStatus(201);
+        $this->assertDatabaseHas('complaint_comments', [
+            'complaint_id' => $complaint->id,
+            'user_id' => $this->tenant->id,
+            'comment' => 'Please fix this quickly.',
+            'is_internal' => 0,
+        ]);
+    }
+
+    public function test_tenant_cannot_add_comment_to_other_tenant_complaint()
+    {
+        $complaint = Complaint::factory()->create(['tenant_id' => $this->otherTenant->id]);
+
+        $response = $this->actingAs($this->tenant)->postJson(
+            "/api/complaints/{$complaint->id}/comments",
+            ['comment' => 'Should fail']
+        );
+
+        $response->assertStatus(403);
+    }
+
+    public function test_tenant_cannot_create_internal_comment()
+    {
+        $complaint = Complaint::factory()->create(['tenant_id' => $this->tenant->id]);
+
+        $response = $this->actingAs($this->tenant)->postJson(
+            "/api/complaints/{$complaint->id}/comments",
+            [
+                'comment' => 'Private note',
+                'is_internal' => true,
+            ]
+        );
+
+        $response->assertStatus(403);
+    }
+
+    public function test_admin_comment_list_includes_internal_comments()
+    {
+        $complaint = Complaint::factory()->create(['tenant_id' => $this->tenant->id]);
+        ComplaintComment::create([
+            'complaint_id' => $complaint->id,
+            'user_id' => $this->admin->id,
+            'comment' => 'Internal admin note',
+            'is_internal' => true,
+        ]);
+        ComplaintComment::create([
+            'complaint_id' => $complaint->id,
+            'user_id' => $this->tenant->id,
+            'comment' => 'Visible tenant comment',
+            'is_internal' => false,
+        ]);
+
+        $response = $this->actingAs($this->admin)->getJson("/api/complaints/{$complaint->id}/comments");
+        $response->assertStatus(200);
+        $this->assertCount(2, $response->json());
+    }
+
+    public function test_tenant_comment_list_excludes_internal_comments()
+    {
+        $complaint = Complaint::factory()->create(['tenant_id' => $this->tenant->id]);
+        ComplaintComment::create([
+            'complaint_id' => $complaint->id,
+            'user_id' => $this->admin->id,
+            'comment' => 'Internal admin note',
+            'is_internal' => true,
+        ]);
+        ComplaintComment::create([
+            'complaint_id' => $complaint->id,
+            'user_id' => $this->tenant->id,
+            'comment' => 'Visible tenant comment',
+            'is_internal' => false,
+        ]);
+
+        $response = $this->actingAs($this->tenant)->getJson("/api/complaints/{$complaint->id}/comments");
+        $response->assertStatus(200);
+        $this->assertCount(1, $response->json());
+        $this->assertFalse((bool) $response->json()[0]['is_internal']);
     }
 }

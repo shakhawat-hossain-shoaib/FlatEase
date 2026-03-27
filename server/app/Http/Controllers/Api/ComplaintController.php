@@ -3,8 +3,11 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\ComplaintAssignmentHistory;
+use App\Models\ComplaintComment;
 use App\Models\Complaint;
 use App\Models\ComplaintStatusHistory;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -63,12 +66,59 @@ class ComplaintController extends Controller
     {
         $complaint = Complaint::with(['tenant', 'assignedTechnician', 'statusHistories', 'comments'])
             ->findOrFail($id);
-        
-        if ($complaint->tenant_id !== Auth::id()) {
+
+        if (!$this->canViewComplaint(Auth::user(), $complaint)) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
-        
+
         return response()->json($complaint, 200);
+    }
+
+    public function comments($id)
+    {
+        $complaint = Complaint::findOrFail($id);
+
+        if (!$this->canViewComplaint(Auth::user(), $complaint)) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        $commentsQuery = ComplaintComment::with('user:id,name,email,role')
+            ->where('complaint_id', $complaint->id)
+            ->orderBy('created_at', 'asc');
+
+        if (data_get(Auth::user(), 'role') !== 'admin') {
+            $commentsQuery->where('is_internal', false);
+        }
+
+        return response()->json($commentsQuery->get(), 200);
+    }
+
+    public function addComment(Request $request, $id)
+    {
+        $complaint = Complaint::findOrFail($id);
+
+        if (!$this->canViewComplaint(Auth::user(), $complaint)) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        $validated = $request->validate([
+            'comment' => 'required|string|max:2000',
+            'is_internal' => 'nullable|boolean',
+        ]);
+
+        $isInternal = (bool) ($validated['is_internal'] ?? false);
+        if ($isInternal && data_get(Auth::user(), 'role') !== 'admin') {
+            return response()->json(['error' => 'Only admins can post internal comments.'], 403);
+        }
+
+        $comment = ComplaintComment::create([
+            'complaint_id' => $complaint->id,
+            'user_id' => Auth::id(),
+            'comment' => $validated['comment'],
+            'is_internal' => $isInternal,
+        ]);
+
+        return response()->json($comment->load('user:id,name,email,role'), 201);
     }
 
     /**
@@ -111,9 +161,10 @@ class ComplaintController extends Controller
     public function updateStatus(Request $request, $id)
     {
         $complaint = Complaint::findOrFail($id);
-        
+
         $validated = $request->validate([
             'new_status' => 'required|in:pending,in_progress,resolved',
+            'reason' => 'nullable|string|max:500',
         ]);
 
         $oldStatus = $complaint->status;
@@ -142,6 +193,7 @@ class ComplaintController extends Controller
             'new_status' => $newStatus,
             'changed_by_id' => Auth::id(),
             'changed_at' => now(),
+            'reason' => $validated['reason'] ?? null,
         ]);
 
         // Update complaint
@@ -152,6 +204,74 @@ class ComplaintController extends Controller
         $complaint->save();
 
         return response()->json($complaint, 200);
+    }
+
+    public function assign(Request $request, $id)
+    {
+        $complaint = Complaint::findOrFail($id);
+
+        $validated = $request->validate([
+            'assigned_technician_id' => 'required|integer|exists:users,id',
+            'sla_due_at' => 'nullable|date|after_or_equal:today',
+            'reason' => 'nullable|string|max:500',
+        ]);
+
+        $assignee = User::findOrFail($validated['assigned_technician_id']);
+        if (!in_array($assignee->role, ['admin', 'technician'], true)) {
+            return response()->json(['error' => 'Assignee must have admin or technician role.'], 422);
+        }
+
+        ComplaintAssignmentHistory::create([
+            'complaint_id' => $complaint->id,
+            'previous_assigned_technician_id' => $complaint->assigned_technician_id,
+            'new_assigned_technician_id' => $assignee->id,
+            'assigned_by_id' => Auth::id(),
+            'assigned_at' => now(),
+            'reason' => $validated['reason'] ?? null,
+        ]);
+
+        $complaint->assigned_technician_id = $assignee->id;
+        $complaint->assigned_by_id = Auth::id();
+        $complaint->assigned_at = now();
+        $complaint->sla_due_at = $validated['sla_due_at'] ?? null;
+
+        if ($complaint->status === 'pending') {
+            $complaint->status = 'in_progress';
+        }
+
+        $complaint->save();
+
+        return response()->json($complaint->load(['tenant', 'assignedTechnician']), 200);
+    }
+
+    public function summary()
+    {
+        $total = Complaint::count();
+        $pending = Complaint::where('status', 'pending')->count();
+        $inProgress = Complaint::where('status', 'in_progress')->count();
+        $resolved = Complaint::where('status', 'resolved')->count();
+        $highPriority = Complaint::where('priority', 'high')->count();
+
+        return response()->json([
+            'total' => $total,
+            'pending' => $pending,
+            'in_progress' => $inProgress,
+            'resolved' => $resolved,
+            'high_priority' => $highPriority,
+        ], 200);
+    }
+
+    private function canViewComplaint($user, Complaint $complaint)
+    {
+        if (!$user) {
+            return false;
+        }
+
+        if ($user->role === 'admin') {
+            return true;
+        }
+
+        return (int) $complaint->tenant_id === (int) $user->id;
     }
 
     /**

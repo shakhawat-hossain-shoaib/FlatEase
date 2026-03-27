@@ -13,9 +13,11 @@ class ComplaintComment extends Model
         'complaint_id',
         'user_id',
         'comment',
+        'is_internal',
     ];
 
     protected $casts = [
+        'is_internal' => 'boolean',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
