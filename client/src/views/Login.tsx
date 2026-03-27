@@ -1,16 +1,17 @@
 import { useMemo, useState } from 'react';
-import { Button, Container, Form } from 'react-bootstrap';
+import { Button, Container, Form, InputGroup } from 'react-bootstrap';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
-import { BsBuilding } from 'react-icons/bs';
+import { BsBuilding, BsEye, BsEyeSlash } from 'react-icons/bs';
 import ApiClient from '../api';
 import { getDefaultPathForRole, setStoredAuthUser } from '../helpers/auth';
 
 export default function Login() {
   const api = useMemo(() => new ApiClient(), []);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [input, setInput] = useState({ email: 'admin@flatease.com', password: 'password' });
+  const [input, setInput] = useState({ email: '', password: '' });
+  const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -67,15 +68,25 @@ export default function Login() {
 
             <Form.Group className="mb-3" controlId="formBasicPassword">
               <Form.Label>Password</Form.Label>
-              <Form.Control
-                type="password"
-                placeholder="••••••••"
-                name="password"
-                value={input.password}
-                onChange={handleChange}
-                required
-                className="border rounded-3 py-2"
-              />
+              <InputGroup>
+                <Form.Control
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="••••••••"
+                  name="password"
+                  value={input.password}
+                  onChange={handleChange}
+                  required
+                  className="border rounded-start-3 py-2"
+                />
+                <Button
+                  type="button"
+                  variant="outline-secondary"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? <BsEyeSlash /> : <BsEye />}
+                </Button>
+              </InputGroup>
             </Form.Group>
 
             <Button variant="primary" type="submit" className="w-100 py-2 fw-bold" disabled={isSubmitting}>
