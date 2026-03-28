@@ -305,6 +305,22 @@ export type TenantNotice = {
   is_read: boolean;
 };
 
+export type AppNotificationEntity = {
+  id: string;
+  type: string;
+  notifiable_type: string;
+  notifiable_id: number;
+  data: {
+    type?: string;
+    title?: string;
+    message?: string;
+    created_at?: string;
+  };
+  read_at?: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type AdminTenantPaymentOption = {
   id: number;
   name: string;
@@ -701,6 +717,18 @@ class ApiClient {
   async getComplaintSummary(): Promise<ComplaintSummary | undefined> {
     try {
       const response = await this.client.get('/api/admin/complaints/summary');
+      return response.data;
+    } catch (error) {
+      this.handleError(error);
+      return undefined;
+    }
+  }
+
+  async getNotifications(perPage = 10): Promise<PaginatedResponse<AppNotificationEntity> | undefined> {
+    try {
+      const response = await this.client.get('/api/notifications', {
+        params: { per_page: perPage },
+      });
       return response.data;
     } catch (error) {
       this.handleError(error);

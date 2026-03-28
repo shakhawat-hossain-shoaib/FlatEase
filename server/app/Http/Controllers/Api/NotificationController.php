@@ -48,7 +48,10 @@ class NotificationController extends Controller
         ]);
 
         $tenantUsers = User::query()
-            ->where('role', 'tenant')
+            ->where(function ($query) use ($request) {
+                $query->where('role', 'tenant')
+                    ->orWhere('id', (int) $request->user()->id);
+            })
             ->select(['id'])
             ->get();
 
@@ -72,7 +75,7 @@ class NotificationController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Notification sent to tenants successfully.',
+            'message' => 'Notification sent to tenants and admin successfully.',
             'broadcast_id' => $broadcastId,
             'recipients' => (int) $tenantUsers->count(),
         ], 201);
