@@ -8,6 +8,8 @@ set -e
 echo "FlatEase Docker Setup"
 echo "========================"
 
+TARGET_BRANCH="${TARGET_BRANCH:-Dockerizing}"
+
 # Check if Docker is installed
 if ! command -v docker &> /dev/null; then
     echo "Docker is not installed. Please install Docker first."
@@ -33,8 +35,18 @@ if [ ! -f .env ]; then
 fi
 
 echo ""
-echo "Building Docker images..."
-docker compose --env-file .env build
+echo "Syncing repository on branch: ${TARGET_BRANCH}"
+git fetch --all
+git checkout "${TARGET_BRANCH}"
+git pull origin "${TARGET_BRANCH}"
+
+echo ""
+echo "Stopping old containers and removing stale volumes..."
+docker compose --env-file .env down -v --remove-orphans
+
+echo ""
+echo "Building Docker images (fresh build)..."
+docker compose --env-file .env build --no-cache --pull
 
 echo ""
 echo "Starting services..."
@@ -63,5 +75,5 @@ echo ""
 echo "Next steps:"
 echo "  - View logs: docker compose logs -f"
 echo "  - Stop services: docker compose down"
-echo "  - Pull updates: git pull && docker compose --env-file .env exec -T backend php artisan migrate --force"
+echo "  - Pull updates: git pull origin ${TARGET_BRANCH} && docker compose --env-file .env exec -T backend php artisan migrate --force"
 echo "  - See DOCKER.md for detailed documentation"

@@ -9,10 +9,11 @@ Provide one reproducible local setup for every developer using Docker, MySQL, La
 ## Team Workflow
 
 1. Clone repository.
-2. Copy environment template.
-3. Start containers.
-4. Run migrations and seeders.
-5. Start coding.
+2. Switch to the active team branch.
+3. Copy environment template.
+4. Start containers.
+5. Run migrations and seeders.
+6. Start coding.
 
 ## Prerequisites
 
@@ -21,13 +22,32 @@ Provide one reproducible local setup for every developer using Docker, MySQL, La
 
 ## First-Time Setup
 
+### Linux / macOS
+
 ```bash
-git clone <your-repository-url>
+git clone --branch Dockerizing <your-repository-url>
 cd FlatEase
-git checkout Dockerizing
 cp .env.example .env
 docker compose up -d --build
 docker compose exec -T backend php artisan migrate --seed --force --no-interaction
+```
+
+### Windows (PowerShell)
+
+```powershell
+git clone --branch Dockerizing <your-repository-url>
+cd FlatEase
+Copy-Item .env.example .env
+docker compose up -d --build
+docker compose exec -T backend php artisan migrate --seed --force --no-interaction
+```
+
+If you already cloned before this setup was introduced:
+
+```bash
+git fetch --all
+git checkout Dockerizing
+git pull origin Dockerizing
 ```
 
 Alternative one-command setup:
@@ -35,6 +55,12 @@ Alternative one-command setup:
 ```bash
 chmod +x docker-init.sh
 ./docker-init.sh
+```
+
+Windows one-command setup:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\docker-init.ps1
 ```
 
 ## Access URLs
@@ -58,7 +84,7 @@ chmod +x docker-init.sh
 docker compose up -d
 
 # Pull latest and apply schema changes
-git pull
+git pull origin Dockerizing
 docker compose exec -T backend php artisan migrate --force
 
 # Rerun seed safely (idempotent)
@@ -69,6 +95,32 @@ docker compose logs -f
 
 # Stop
 docker compose down
+```
+
+## Team-Safe Update Process
+
+Use this when code looks old or mismatched after pulling:
+
+```bash
+git fetch --all
+git checkout Dockerizing
+git pull origin Dockerizing
+docker compose down -v --remove-orphans
+docker compose build --no-cache --pull
+docker compose up -d
+docker compose exec -T backend php artisan migrate --seed --force --no-interaction
+```
+
+Windows (PowerShell):
+
+```powershell
+git fetch --all
+git checkout Dockerizing
+git pull origin Dockerizing
+docker compose down -v --remove-orphans
+docker compose build --no-cache --pull
+docker compose up -d
+docker compose exec -T backend php artisan migrate --seed --force --no-interaction
 ```
 
 ## Reset Local Database
