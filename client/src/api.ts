@@ -780,8 +780,10 @@ class ApiClient {
 
   async openTenantDocument(documentId: number): Promise<void> {
     try {
+      const headers = await this.csrfHeaders();
       const response = await this.client.get(`/api/tenant/documents/${documentId}/download`, {
         responseType: 'blob',
+        headers,
       });
 
       const blobUrl = window.URL.createObjectURL(response.data as Blob);
@@ -794,8 +796,10 @@ class ApiClient {
 
   async openAdminDocument(documentId: number): Promise<void> {
     try {
+      const headers = await this.csrfHeaders();
       const response = await this.client.get(`/api/admin/documents/${documentId}/download`, {
         responseType: 'blob',
+        headers,
       });
 
       const blobUrl = window.URL.createObjectURL(response.data as Blob);
