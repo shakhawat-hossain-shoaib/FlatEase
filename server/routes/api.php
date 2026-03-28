@@ -3,8 +3,10 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\UserManagementController;
+use App\Http\Controllers\Api\AdminBuildingController;
 use App\Http\Controllers\Api\ComplaintController;
 use App\Http\Controllers\Api\NotificationController;
+use App\Http\Controllers\Api\TenantDocumentController;
 
 /*
 |--------------------------------------------------------------------------
@@ -24,6 +26,15 @@ Route::middleware(['auth:sanctum'])->get('/user', function (Request $request) {
 Route::middleware(['auth:sanctum', 'check.admin'])->group(function () {
     Route::get('/admin/users/assignable', [UserManagementController::class, 'assignable']);
     Route::post('/admin/users', [UserManagementController::class, 'store']);
+
+    Route::get('/admin/buildings', [AdminBuildingController::class, 'index']);
+    Route::get('/admin/buildings/{buildingId}', [AdminBuildingController::class, 'show']);
+    Route::post('/admin/units/{unitId}/assign', [AdminBuildingController::class, 'assignTenant']);
+    Route::patch('/admin/assignments/{assignmentId}/end', [AdminBuildingController::class, 'unassignTenant']);
+
+    Route::get('/admin/tenants/{tenantId}/documents', [TenantDocumentController::class, 'adminIndexByTenant']);
+    Route::patch('/admin/documents/{documentId}/status', [TenantDocumentController::class, 'adminUpdateStatus']);
+    Route::get('/admin/documents/{documentId}/download', [TenantDocumentController::class, 'download']);
 });
 
 // Complaint routes
@@ -31,6 +42,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/complaints', [ComplaintController::class, 'index']);
     Route::post('/complaints', [ComplaintController::class, 'store']);
     Route::get('/complaints/{id}', [ComplaintController::class, 'show']);
+    Route::patch('/complaints/{id}/resolve', [ComplaintController::class, 'tenantMarkResolved']);
     Route::get('/complaints/{id}/comments', [ComplaintController::class, 'comments']);
     Route::post('/complaints/{id}/comments', [ComplaintController::class, 'addComment']);
     Route::get('/notifications', [NotificationController::class, 'index']);
@@ -41,6 +53,20 @@ Route::middleware(['auth:sanctum'])->group(function () {
 Route::middleware(['auth:sanctum', 'check.admin'])->group(function () {
     Route::get('/admin/complaints', [ComplaintController::class, 'adminIndex']);
     Route::get('/admin/complaints/summary', [ComplaintController::class, 'summary']);
+    Route::get('/admin/technicians', [ComplaintController::class, 'technicians']);
     Route::patch('/admin/complaints/{id}/status', [ComplaintController::class, 'updateStatus']);
-    Route::patch('/admin/complaints/{id}/assign', [ComplaintController::class, 'assign']);
+    Route::patch('/admin/complaints/{id}/assign', [ComplaintController::class, 'assignTechnicians']);
+});
+
+Route::middleware(['auth:sanctum', 'check.technician'])->group(function () {
+    Route::get('/technician/complaints', [ComplaintController::class, 'technicianIndex']);
+    Route::patch('/technician/complaints/{id}/status', [ComplaintController::class, 'technicianUpdateStatus']);
+});
+
+Route::middleware(['auth:sanctum'])->group(function () {
+    Route::get('/tenant/documents/checklist', [TenantDocumentController::class, 'checklist']);
+    Route::get('/tenant/documents', [TenantDocumentController::class, 'index']);
+    Route::post('/tenant/documents', [TenantDocumentController::class, 'store']);
+    Route::delete('/tenant/documents/{documentId}', [TenantDocumentController::class, 'destroy']);
+    Route::get('/tenant/documents/{documentId}/download', [TenantDocumentController::class, 'download']);
 });

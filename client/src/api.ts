@@ -9,9 +9,9 @@ export type LoginResponse = {
     id: number;
     name: string;
     email: string;
-    role: 'admin' | 'tenant';
+    role: 'admin' | 'tenant' | 'technician';
   };
-  redirectPath: '/admin' | '/tenant';
+  redirectPath: '/admin' | '/tenant' | '/technician';
 };
 
 export type BasicApiResponse = {
@@ -26,12 +26,28 @@ export type AdminCreateUserResponse = {
     id: number;
     name: string;
     email: string;
-    role: 'admin' | 'tenant';
+    role: 'admin' | 'tenant' | 'technician';
   };
 };
 
-export type ComplaintStatus = 'pending' | 'in_progress' | 'resolved';
+export type ComplaintStatus = 'pending' | 'assigned' | 'in_progress' | 'resolved';
 export type ComplaintPriority = 'low' | 'medium' | 'high';
+
+export type TechnicianEntity = {
+  id: number;
+  user_id: number;
+  name: string;
+  phone?: string | null;
+  email: string;
+  specialization: string;
+  active: boolean;
+  user?: {
+    id: number;
+    name: string;
+    email: string;
+    role: 'technician';
+  };
+};
 
 export type ComplaintEntity = {
   id: number;
@@ -66,6 +82,7 @@ export type ComplaintEntity = {
     email: string;
     role: string;
   };
+  technicians?: TechnicianEntity[];
   status_histories?: Array<{
     id: number;
     old_status: ComplaintStatus | null;
@@ -108,19 +125,103 @@ export type ComplaintCommentEntity = {
   };
 };
 
-export type AssignableUser = {
-  id: number;
-  name: string;
-  email: string;
-  role: 'admin' | 'technician';
-};
-
 export type ComplaintSummary = {
   total: number;
   pending: number;
+  assigned?: number;
   in_progress: number;
   resolved: number;
   high_priority: number;
+};
+
+export type TenantProfileEntity = {
+  id: number;
+  user_id: number;
+  phone?: string | null;
+  emergency_contact_name?: string | null;
+  emergency_contact_phone?: string | null;
+};
+
+export type UnitAssignmentEntity = {
+  id: number;
+  unit_id: number;
+  tenant_user_id: number;
+  status: 'active' | 'ended' | 'terminated' | 'pending_move_in';
+  lease_start_date?: string | null;
+  lease_end_date?: string | null;
+  rent_amount?: string | null;
+  tenant?: {
+    id: number;
+    name: string;
+    email: string;
+    tenant_profile?: TenantProfileEntity;
+    tenantProfile?: TenantProfileEntity;
+  };
+};
+
+export type UnitEntity = {
+  id: number;
+  building_id: number;
+  floor_id: number;
+  unit_number: string;
+  bedrooms?: number | null;
+  bathrooms?: number | null;
+  area_sqft?: number | null;
+  occupancy_status: 'vacant' | 'occupied' | 'blocked';
+  active_assignment?: UnitAssignmentEntity | null;
+  activeAssignment?: UnitAssignmentEntity | null;
+};
+
+export type FloorEntity = {
+  id: number;
+  building_id: number;
+  floor_number: number;
+  floor_label: string;
+  sort_order: number;
+  units: UnitEntity[];
+};
+
+export type BuildingEntity = {
+  id: number;
+  name: string;
+  code?: string | null;
+  total_floors: number;
+  units_count?: number;
+  occupied_units_count?: number;
+  vacant_units_count?: number;
+  floors?: FloorEntity[];
+};
+
+export type DocumentTypeEntity = {
+  id: number;
+  type_key: 'nid' | 'personal_photo' | 'job_id_card' | string;
+  label: string;
+};
+
+export type TenantDocumentEntity = {
+  id: number;
+  tenant_user_id: number;
+  document_type_id: number;
+  original_filename: string;
+  mime_type: string;
+  file_size_bytes: number;
+  status: 'uploaded' | 'under_review' | 'approved' | 'rejected' | 'expired';
+  rejection_reason?: string | null;
+  created_at: string;
+  updated_at: string;
+  document_type?: DocumentTypeEntity;
+  documentType?: DocumentTypeEntity;
+};
+
+export type TenantDocumentChecklistItem = {
+  document_type_id: number;
+  type_key: string;
+  label: string;
+  is_required: boolean;
+  max_size_mb: number;
+  allowed_mimes: string[];
+  uploaded: boolean;
+  latest_document?: TenantDocumentEntity | null;
 };
 
 class ApiClient {
@@ -289,7 +390,7 @@ class ApiClient {
     email: string,
     password: string,
     password_confirmation: string,
-    role: 'admin' | 'tenant'
+    role: 'admin' | 'tenant' | 'technician'
   ): Promise<AdminCreateUserResponse | undefined> {
     try {
       const headers = await this.csrfHeaders();
@@ -309,9 +410,13 @@ class ApiClient {
     }
   }
 
-  async getComplaints(role: 'Admin' | 'Tenant'): Promise<PaginatedResponse<ComplaintEntity> | undefined> {
+  async getComplaints(role: 'Admin' | 'Tenant' | 'Technician'): Promise<PaginatedResponse<ComplaintEntity> | undefined> {
     try {
-      const endpoint = role === 'Admin' ? '/api/admin/complaints' : '/api/complaints';
+      const endpoint = role === 'Admin'
+        ? '/api/admin/complaints'
+        : role === 'Technician'
+        ? '/api/technician/complaints'
+        : '/api/complaints';
       const response = await this.client.get(endpoint);
       return response.data;
     } catch (error) {
@@ -352,7 +457,7 @@ class ApiClient {
 
   async assignComplaint(
     complaintId: number,
-    payload: { assigned_technician_id: number; sla_due_at?: string; reason?: string }
+    payload: { technician_ids: number[]; sla_due_at?: string; reason?: string }
   ): Promise<ComplaintEntity | undefined> {
     try {
       const headers = await this.csrfHeaders();
@@ -388,9 +493,34 @@ class ApiClient {
     }
   }
 
-  async getAssignableUsers(): Promise<AssignableUser[] | undefined> {
+  async getAssignableTechnicians(): Promise<TechnicianEntity[] | undefined> {
     try {
-      const response = await this.client.get('/api/admin/users/assignable');
+      const response = await this.client.get('/api/admin/technicians');
+      return response.data;
+    } catch (error) {
+      this.handleError(error);
+      return undefined;
+    }
+  }
+
+  async updateTechnicianComplaintStatus(
+    complaintId: number,
+    payload: { new_status: Extract<ComplaintStatus, 'in_progress' | 'resolved'>; reason?: string }
+  ): Promise<ComplaintEntity | undefined> {
+    try {
+      const headers = await this.csrfHeaders();
+      const response = await this.client.patch(`/api/technician/complaints/${complaintId}/status`, payload, { headers });
+      return response.data;
+    } catch (error) {
+      this.handleError(error);
+      return undefined;
+    }
+  }
+
+  async markComplaintResolvedByTenant(complaintId: number): Promise<ComplaintEntity | undefined> {
+    try {
+      const headers = await this.csrfHeaders();
+      const response = await this.client.patch(`/api/complaints/${complaintId}/resolve`, {}, { headers });
       return response.data;
     } catch (error) {
       this.handleError(error);
@@ -406,6 +536,96 @@ class ApiClient {
       this.handleError(error);
       return undefined;
     }
+  }
+
+  async getAdminBuildings(): Promise<BuildingEntity[] | undefined> {
+    try {
+      const response = await this.client.get('/api/admin/buildings');
+      return response.data;
+    } catch (error) {
+      this.handleError(error);
+      return undefined;
+    }
+  }
+
+  async getAdminBuilding(buildingId: number): Promise<BuildingEntity | undefined> {
+    try {
+      const response = await this.client.get(`/api/admin/buildings/${buildingId}`);
+      return response.data;
+    } catch (error) {
+      this.handleError(error);
+      return undefined;
+    }
+  }
+
+  async getTenantDocumentChecklist(): Promise<TenantDocumentChecklistItem[] | undefined> {
+    try {
+      const response = await this.client.get('/api/tenant/documents/checklist');
+      return response.data;
+    } catch (error) {
+      this.handleError(error);
+      return undefined;
+    }
+  }
+
+  async getTenantDocuments(): Promise<TenantDocumentEntity[] | undefined> {
+    try {
+      const response = await this.client.get('/api/tenant/documents');
+      return response.data;
+    } catch (error) {
+      this.handleError(error);
+      return undefined;
+    }
+  }
+
+  async uploadTenantDocument(documentTypeId: number, file: File): Promise<TenantDocumentEntity | undefined> {
+    try {
+      const headers = await this.csrfHeaders();
+      const formData = new FormData();
+      formData.append('document_type_id', String(documentTypeId));
+      formData.append('file', file);
+
+      const response = await this.client.post('/api/tenant/documents', formData, {
+        headers: {
+          ...(headers ?? {}),
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      return response.data;
+    } catch (error) {
+      this.handleError(error);
+      return undefined;
+    }
+  }
+
+  async deleteTenantDocument(documentId: number): Promise<BasicApiResponse | undefined> {
+    try {
+      const headers = await this.csrfHeaders();
+      const response = await this.client.delete(`/api/tenant/documents/${documentId}`, { headers });
+      return response.data;
+    } catch (error) {
+      this.handleError(error);
+      return undefined;
+    }
+  }
+
+  async getAdminTenantDocuments(tenantId: number): Promise<TenantDocumentEntity[] | undefined> {
+    try {
+      const response = await this.client.get(`/api/admin/tenants/${tenantId}/documents`);
+      return response.data;
+    } catch (error) {
+      this.handleError(error);
+      return undefined;
+    }
+  }
+
+  getTenantDocumentDownloadUrl(documentId: number): string {
+    return `${secrets.backendEndpoint}/api/tenant/documents/${documentId}/download`;
+  }
+
+  getAdminDocumentDownloadUrl(documentId: number): string {
+    return `${secrets.backendEndpoint}/api/admin/documents/${documentId}/download`;
   }
 
   // Handle common errors

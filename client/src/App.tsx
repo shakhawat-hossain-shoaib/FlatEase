@@ -11,6 +11,7 @@ import AdminUserManagement from './views/AdminUserManagement';
 import ComplaintsPage from './views/ComplaintsPage';
 import LeaseDetailsPage from './views/LeaseDetailsPage';
 import DocumentsPage from './views/DocumentsPage';
+import TechnicianDashboard from './views/TechnicianDashboard';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './index.css';
 import { Toaster } from 'react-hot-toast';
@@ -95,22 +96,6 @@ function App() {
             }
           />
           <Route
-            path="/admin/lease"
-            element={
-              <RoleGuard role="admin">
-                <LeaseDetailsPage role="Admin" />
-              </RoleGuard>
-            }
-          />
-          <Route
-            path="/admin/lease/:id"
-            element={
-              <RoleGuard role="admin">
-                <LeaseDetailsPage role="Admin" />
-              </RoleGuard>
-            }
-          />
-          <Route
             path="/admin/complaints"
             element={
               <RoleGuard role="admin">
@@ -163,6 +148,22 @@ function App() {
             element={
               <RoleGuard role="tenant">
                 <ComplaintsPage role="Tenant" />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="/technician"
+            element={
+              <RoleGuard role="technician">
+                <TechnicianDashboard />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="/technician/complaints"
+            element={
+              <RoleGuard role="technician">
+                <ComplaintsPage role="Technician" />
               </RoleGuard>
             }
           />

@@ -14,6 +14,9 @@ class DatabaseSeeder extends Seeder
         $this->call([
             DefaultAdminSeeder::class,
             DefaultTenantSeeder::class,
+            TechnicianSeeder::class,
+            DocumentTypeSeeder::class,
+            BuildingUnitSeeder::class,
         ]);
     }
 }

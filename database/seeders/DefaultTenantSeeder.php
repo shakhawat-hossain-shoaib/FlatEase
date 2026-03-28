@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\TenantProfile;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
@@ -22,7 +23,7 @@ class DefaultTenantSeeder extends Seeder
             return;
         }
 
-        User::updateOrCreate(
+        $tenant = User::updateOrCreate(
             ['email' => $email],
             [
                 'name' => $name,
@@ -30,6 +31,8 @@ class DefaultTenantSeeder extends Seeder
                 'role' => 'tenant',
             ]
         );
+
+        TenantProfile::updateOrCreate(['user_id' => $tenant->id], []);
 
         $this->command?->info("Default tenant account seeded/updated for {$email}.");
     }
