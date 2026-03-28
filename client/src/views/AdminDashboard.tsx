@@ -1,16 +1,15 @@
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DashboardLayout } from './DashboardLayout';
-import { BsBuilding, BsFileEarmarkText, BsChatDots, BsPeople } from 'react-icons/bs';
+import { BsBuilding, BsChatDots, BsPeople } from 'react-icons/bs';
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
 
   const quickActions = useMemo(
     () => [
-      { label: 'Apartments & Tenants', icon: BsBuilding, to: '/admin/apartments' },
+      { label: 'Buildings & Tenants', icon: BsBuilding, to: '/admin/apartments' },
       { label: 'Create Users', icon: BsPeople, to: '/admin/users' },
-      { label: 'Lease Details', icon: BsFileEarmarkText, to: '/admin/lease' },
       { label: 'View Complaints', icon: BsChatDots, to: '/admin/complaints' },
     ],
     []

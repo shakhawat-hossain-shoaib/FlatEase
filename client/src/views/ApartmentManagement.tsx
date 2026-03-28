@@ -1,171 +1,275 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { Badge, Button, Card, Col, Modal, Row } from 'react-bootstrap';
+import { BsBuilding, BsFileEarmarkArrowUp, BsGrid, BsPerson, BsTelephone } from 'react-icons/bs';
+import ApiClient, { BuildingEntity, FloorEntity, TenantDocumentEntity, UnitEntity } from '../api';
 import { DashboardLayout } from './DashboardLayout';
-import { BsFilter, BsPlus, BsSearch } from 'react-icons/bs';
-import { Button, Form, InputGroup, Table } from 'react-bootstrap';
 
-interface Apartment {
-  unit: string;
-  tenant: string;
-  bedrooms: number;
-  rent: string;
-  status: 'Occupied' | 'Vacant';
-  lease: 'Active' | 'Expiring' | '-';
-  expiry: string;
-}
+type UnitWithAssignment = UnitEntity & {
+  activeAssignmentNormalized?: UnitEntity['active_assignment'];
+};
 
 export default function ApartmentManagement() {
-  const [search, setSearch] = useState('');
+  const api = useMemo(() => new ApiClient(), []);
+  const [isLoadingBuildings, setIsLoadingBuildings] = useState(false);
+  const [isLoadingGrid, setIsLoadingGrid] = useState(false);
+  const [buildings, setBuildings] = useState<BuildingEntity[]>([]);
+  const [selectedBuildingId, setSelectedBuildingId] = useState<number | null>(null);
+  const [selectedBuilding, setSelectedBuilding] = useState<BuildingEntity | null>(null);
+  const [selectedUnit, setSelectedUnit] = useState<UnitWithAssignment | null>(null);
+  const [tenantDocuments, setTenantDocuments] = useState<TenantDocumentEntity[]>([]);
+  const [isLoadingTenantDocuments, setIsLoadingTenantDocuments] = useState(false);
 
-  const apartments = useMemo<Apartment[]>(
-    () => [
-      { unit: 'A-101', tenant: 'John Doe', bedrooms: 2, rent: '$1,650', status: 'Occupied', lease: 'Active', expiry: 'Dec 31, 2026' },
-      { unit: 'A-102', tenant: 'Emma Wilson', bedrooms: 3, rent: '$1,950', status: 'Occupied', lease: 'Active', expiry: 'Mar 15, 2027' },
-      { unit: 'A-103', tenant: '-', bedrooms: 2, rent: '$1,700', status: 'Vacant', lease: '-', expiry: '-' },
-      { unit: 'A-201', tenant: 'Sarah Smith', bedrooms: 1, rent: '$1,350', status: 'Occupied', lease: 'Expiring', expiry: 'Feb 28, 2026' },
-      { unit: 'A-202', tenant: 'Mike Johnson', bedrooms: 2, rent: '$1,650', status: 'Occupied', lease: 'Active', expiry: 'Aug 20, 2026' },
-      { unit: 'A-203', tenant: '-', bedrooms: 3, rent: '$2,100', status: 'Vacant', lease: '-', expiry: '-' },
-      { unit: 'A-301', tenant: 'John Doe', bedrooms: 3, rent: '$1,850', status: 'Occupied', lease: 'Active', expiry: 'Dec 31, 2026' },
-      { unit: 'B-101', tenant: 'Lisa Brown', bedrooms: 2, rent: '$1,750', status: 'Occupied', lease: 'Active', expiry: 'Nov 10, 2026' },
-      { unit: 'B-102', tenant: 'David Lee', bedrooms: 2, rent: '$1,680', status: 'Occupied', lease: 'Expiring', expiry: 'Jan 31, 2026' },
-      { unit: 'B-103', tenant: '-', bedrooms: 1, rent: '$1,400', status: 'Vacant', lease: '-', expiry: '-' },
-    ],
-    []
-  );
+  useEffect(() => {
+    const loadBuildings = async () => {
+      setIsLoadingBuildings(true);
+      const response = await api.getAdminBuildings();
+      if (response && response.length > 0) {
+        setBuildings(response);
+        setSelectedBuildingId((current) => current ?? response[0].id);
+      }
+      setIsLoadingBuildings(false);
+    };
 
-  const filtered = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    if (!term) return apartments;
-    return apartments.filter(
-      (apt) =>
-        apt.unit.toLowerCase().includes(term) ||
-        apt.tenant.toLowerCase().includes(term) ||
-        apt.status.toLowerCase().includes(term)
-    );
-  }, [apartments, search]);
+    void loadBuildings();
+  }, [api]);
+
+  useEffect(() => {
+    if (!selectedBuildingId) {
+      setSelectedBuilding(null);
+      return;
+    }
+
+    const loadBuildingGrid = async () => {
+      setIsLoadingGrid(true);
+      const response = await api.getAdminBuilding(selectedBuildingId);
+      setSelectedBuilding(response ?? null);
+      setIsLoadingGrid(false);
+    };
+
+    void loadBuildingGrid();
+  }, [api, selectedBuildingId]);
+
+  const floors = (selectedBuilding?.floors ?? [])
+    .slice()
+    .sort((a, b) => a.sort_order - b.sort_order) as FloorEntity[];
+
+  const totalUnits = useMemo(() => buildings.reduce((sum, item) => sum + (item.units_count ?? 0), 0), [buildings]);
+  const totalOccupied = useMemo(() => buildings.reduce((sum, item) => sum + (item.occupied_units_count ?? 0), 0), [buildings]);
+  const totalVacant = Math.max(0, totalUnits - totalOccupied);
+
+  const openUnit = async (unit: UnitEntity) => {
+    const activeAssignment = unit.active_assignment ?? unit.activeAssignment ?? null;
+    const normalized: UnitWithAssignment = {
+      ...unit,
+      activeAssignmentNormalized: activeAssignment,
+    };
+
+    setSelectedUnit(normalized);
+
+    if (!activeAssignment?.tenant_user_id) {
+      setTenantDocuments([]);
+      return;
+    }
+
+    setIsLoadingTenantDocuments(true);
+    const response = await api.getAdminTenantDocuments(activeAssignment.tenant_user_id);
+    setTenantDocuments(response ?? []);
+    setIsLoadingTenantDocuments(false);
+  };
+
+  const selectedTenant = selectedUnit?.activeAssignmentNormalized?.tenant;
+  const selectedTenantPhone = selectedTenant?.tenant_profile?.phone ?? selectedTenant?.tenantProfile?.phone;
 
   return (
     <DashboardLayout role="Admin">
       <div style={{ background: '#e8f0ff', minHeight: '100vh' }}>
-        <div className="container-fluid">
+        <div className="container-fluid py-2">
           <div className="d-flex align-items-start justify-content-between mb-4">
             <div>
-              <h2 className="mb-1">Apartment & Tenant Management</h2>
-              <p className="text-muted">Manage all apartments and tenant information</p>
-            </div>
-            <Button>
-              <BsPlus className="me-1" /> Add Unit
-            </Button>
-          </div>
-
-          <div className="row gx-3 gy-3 mb-4">
-            <div className="col-6 col-md-3">
-              <div className="card p-3">
-                <h6 className="mb-2">Total Units</h6>
-                <p className="h3 mb-1">200</p>
-              </div>
-            </div>
-            <div className="col-6 col-md-3">
-              <div className="card p-3">
-                <h6 className="mb-2">Occupied</h6>
-                <p className="h3 mb-1">186</p>
-              </div>
-            </div>
-            <div className="col-6 col-md-3">
-              <div className="card p-3">
-                <h6 className="mb-2">Vacant</h6>
-                <p className="h3 mb-1">14</p>
-              </div>
-            </div>
-            <div className="col-6 col-md-3">
-              <div className="card p-3">
-                <h6 className="mb-2">Expiring Soon</h6>
-                <p className="h3 mb-1">8</p>
-              </div>
+              <h2 className="mb-1">Building & Tenant Management</h2>
+              <p className="text-muted mb-0">Select a building to view floor-wise unit occupancy and tenant details</p>
             </div>
           </div>
 
-          <div className="card">
-            <div className="card-header d-flex flex-column flex-md-row gap-3 align-items-start align-items-md-center justify-content-between">
-              <h5 className="mb-0">All Apartments</h5>
-              <div className="d-flex gap-2 w-100 w-md-auto">
-                <InputGroup className="flex-grow-1">
-                  <InputGroup.Text>
-                    <BsSearch />
-                  </InputGroup.Text>
-                  <Form.Control
-                    placeholder="Search units or tenants..."
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                  />
-                </InputGroup>
-                <Button variant="outline-secondary">
-                  <BsFilter className="me-1" /> Filter
-                </Button>
+          <Row className="g-3 mb-4">
+            <Col md={4}>
+              <Card className="border-0 shadow-sm h-100">
+                <Card.Body>
+                  <small className="text-muted d-block">Buildings</small>
+                  <h4 className="mb-0">{buildings.length}</h4>
+                </Card.Body>
+              </Card>
+            </Col>
+            <Col md={4}>
+              <Card className="border-0 shadow-sm h-100">
+                <Card.Body>
+                  <small className="text-muted d-block">Occupied Units</small>
+                  <h4 className="mb-0">{totalOccupied}</h4>
+                </Card.Body>
+              </Card>
+            </Col>
+            <Col md={4}>
+              <Card className="border-0 shadow-sm h-100">
+                <Card.Body>
+                  <small className="text-muted d-block">Vacant Units</small>
+                  <h4 className="mb-0">{totalVacant}</h4>
+                </Card.Body>
+              </Card>
+            </Col>
+          </Row>
+
+          <Card className="border-0 shadow-sm mb-4">
+            <Card.Header className="bg-white border-0 pt-4 px-4 d-flex align-items-center gap-2">
+              <BsBuilding />
+              <h5 className="mb-0">Buildings</h5>
+            </Card.Header>
+            <Card.Body className="px-4 pb-4">
+              {isLoadingBuildings && <div className="text-muted">Loading buildings...</div>}
+              {!isLoadingBuildings && buildings.length === 0 && <div className="text-muted">No buildings found.</div>}
+
+              <div className="d-flex flex-wrap gap-2">
+                {buildings.map((building) => (
+                  <Button
+                    key={building.id}
+                    variant={selectedBuildingId === building.id ? 'primary' : 'outline-primary'}
+                    onClick={() => setSelectedBuildingId(building.id)}
+                  >
+                    {building.name}
+                  </Button>
+                ))}
               </div>
-            </div>
-            <div className="card-body p-0">
-              <div className="table-responsive">
-                <Table hover className="mb-0">
-                  <thead className="bg-light">
-                    <tr>
-                      <th>Unit</th>
-                      <th>Tenant</th>
-                      <th>Bedrooms</th>
-                      <th>Rent</th>
-                      <th>Status</th>
-                      <th>Lease</th>
-                      <th>Expiry</th>
-                      <th />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filtered.map((apt) => (
-                      <tr key={apt.unit}>
-                        <td className="align-middle">{apt.unit}</td>
-                        <td className="align-middle">{apt.tenant}</td>
-                        <td className="align-middle">{apt.bedrooms} BR</td>
-                        <td className="align-middle">{apt.rent}</td>
-                        <td className="align-middle">
-                          <span className={`badge ${apt.status === 'Occupied' ? 'bg-success' : 'bg-secondary'}`}>
-                            {apt.status}
-                          </span>
-                        </td>
-                        <td className="align-middle">
-                          {apt.lease === 'Active' && <span className="badge bg-success">Active</span>}
-                          {apt.lease === 'Expiring' && <span className="badge bg-warning text-dark">Expiring</span>}
-                          {apt.lease === '-' && <span className="text-muted">-</span>}
-                        </td>
-                        <td className="align-middle">{apt.expiry}</td>
-                        <td className="align-middle">
-                          <div className="d-flex gap-2">
-                            <Button variant="outline-secondary" size="sm">
-                              Edit
-                            </Button>
-                            <Button variant="outline-danger" size="sm">
-                              Delete
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </Table>
-              </div>
-            </div>
-            <div className="card-footer d-flex justify-content-between align-items-center">
-              <small className="text-muted">Showing 1 to {filtered.length} of {apartments.length} units</small>
-              <div className="d-flex gap-2">
-                <Button variant="outline-secondary" size="sm" disabled>
-                  Previous
-                </Button>
-                <Button variant="outline-secondary" size="sm">
-                  Next
-                </Button>
-              </div>
-            </div>
-          </div>
+            </Card.Body>
+          </Card>
+
+          <Card className="border-0 shadow-sm">
+            <Card.Header className="bg-white border-0 pt-4 px-4 d-flex align-items-center gap-2">
+              <BsGrid />
+              <h5 className="mb-0">
+                {selectedBuilding?.name ? `${selectedBuilding.name} - Floor Grid` : 'Floor Grid'}
+              </h5>
+            </Card.Header>
+            <Card.Body className="px-4 pb-4">
+              {isLoadingGrid && <div className="text-muted">Loading floor/unit layout...</div>}
+              {!isLoadingGrid && floors.length === 0 && <div className="text-muted">No floor data found for this building.</div>}
+
+              {!isLoadingGrid &&
+                floors.map((floor) => (
+                  <div key={floor.id} className="mb-4">
+                    <h6 className="mb-3">{floor.floor_label}</h6>
+                    <Row className="g-3">
+                      {(floor.units ?? []).map((unit) => {
+                        const activeAssignment = unit.active_assignment ?? unit.activeAssignment ?? null;
+                        const tenant = activeAssignment?.tenant;
+                        const phone = tenant?.tenant_profile?.phone ?? tenant?.tenantProfile?.phone;
+                        const isOccupied = unit.occupancy_status === 'occupied' && !!tenant;
+
+                        return (
+                          <Col key={unit.id} xs={12} sm={6} lg={3}>
+                            <Card
+                              className="h-100 border-0 shadow-sm"
+                              role="button"
+                              onClick={() => void openUnit(unit)}
+                              style={{ cursor: 'pointer' }}
+                            >
+                              <Card.Body>
+                                <div className="d-flex justify-content-between align-items-center mb-2">
+                                  <h6 className="mb-0">{unit.unit_number}</h6>
+                                  <Badge bg={isOccupied ? 'success' : 'secondary'}>
+                                    {isOccupied ? 'Occupied' : 'Unassigned'}
+                                  </Badge>
+                                </div>
+
+                                {isOccupied ? (
+                                  <>
+                                    <div className="fw-semibold">{tenant?.name}</div>
+                                    <small className="text-muted d-block">{tenant?.email}</small>
+                                    <small className="text-muted d-block">{phone ?? 'No phone on profile'}</small>
+                                  </>
+                                ) : (
+                                  <small className="text-muted">No tenant assigned to this unit.</small>
+                                )}
+                              </Card.Body>
+                            </Card>
+                          </Col>
+                        );
+                      })}
+                    </Row>
+                  </div>
+                ))}
+            </Card.Body>
+          </Card>
         </div>
       </div>
+
+      <Modal show={selectedUnit !== null} onHide={() => setSelectedUnit(null)} size="lg" centered>
+        <Modal.Header closeButton>
+          <Modal.Title>Unit {selectedUnit?.unit_number} Details</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {!selectedTenant && <p className="text-muted mb-0">This unit is currently unassigned.</p>}
+
+          {selectedTenant && (
+            <>
+              <div className="d-flex flex-wrap gap-4 mb-4">
+                <div>
+                  <small className="text-muted d-block">Tenant</small>
+                  <div className="fw-semibold d-flex align-items-center gap-2">
+                    <BsPerson /> {selectedTenant.name}
+                  </div>
+                </div>
+                <div>
+                  <small className="text-muted d-block">Contact</small>
+                  <div className="fw-semibold d-flex align-items-center gap-2">
+                    <BsTelephone /> {selectedTenantPhone ?? 'Not provided'}
+                  </div>
+                </div>
+              </div>
+
+              <h6 className="mb-3">Tenant Documents</h6>
+              {isLoadingTenantDocuments && <p className="text-muted mb-0">Loading tenant documents...</p>}
+              {!isLoadingTenantDocuments && tenantDocuments.length === 0 && (
+                <p className="text-muted mb-0">No uploaded documents found for this tenant.</p>
+              )}
+
+              {!isLoadingTenantDocuments && tenantDocuments.length > 0 && (
+                <div className="d-grid gap-2">
+                  {tenantDocuments.map((doc) => {
+                    const type = doc.document_type ?? doc.documentType;
+
+                    return (
+                      <Card key={doc.id} className="border">
+                        <Card.Body className="py-3">
+                          <div className="d-flex justify-content-between align-items-center gap-3">
+                            <div>
+                              <div className="fw-semibold">{type?.label ?? 'Document'}</div>
+                              <small className="text-muted">{doc.original_filename}</small>
+                            </div>
+                            <div className="d-flex align-items-center gap-2">
+                              <Badge bg={doc.status === 'approved' ? 'success' : doc.status === 'rejected' ? 'danger' : 'secondary'}>
+                                {doc.status}
+                              </Badge>
+                              <Button
+                                as="a"
+                                href={api.getAdminDocumentDownloadUrl(doc.id)}
+                                target="_blank"
+                                rel="noreferrer"
+                                size="sm"
+                                variant="outline-primary"
+                              >
+                                <BsFileEarmarkArrowUp className="me-1" /> Open
+                              </Button>
+                            </div>
+                          </div>
+                        </Card.Body>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </>
+          )}
+        </Modal.Body>
+      </Modal>
     </DashboardLayout>
   );
 }

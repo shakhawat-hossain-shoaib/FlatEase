@@ -14,7 +14,7 @@ import ApiClient from '../api';
 import { clearStoredAuthUser } from '../helpers/auth';
 
 interface DashboardLayoutProps {
-  role: 'Admin' | 'Tenant';
+  role: 'Admin' | 'Tenant' | 'Technician';
   children: ReactNode;
 }
 
@@ -49,10 +49,14 @@ export function DashboardLayout({ role, children }: DashboardLayoutProps) {
     role === 'Admin'
       ? [
           { label: 'Dashboard', icon: BsGrid, to: '/admin' },
-          { label: 'Apartments & Tenants', icon: BsBuilding, to: '/admin/apartments' },
+          { label: 'Buildings & Tenants', icon: BsBuilding, to: '/admin/apartments' },
           { label: 'Users', icon: BsPeople, to: '/admin/users' },
-          { label: 'Lease Details', icon: BsFileEarmarkText, to: '/admin/lease' },
           { label: 'Complaints', icon: BsChatDots, to: '/admin/complaints' },
+        ]
+      : role === 'Technician'
+      ? [
+          { label: 'Dashboard', icon: BsGrid, to: '/technician' },
+          { label: 'Assigned Complaints', icon: BsChatDots, to: '/technician/complaints' },
         ]
       : [
           { label: 'Dashboard', icon: BsGrid, to: '/tenant' },

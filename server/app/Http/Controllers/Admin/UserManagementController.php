@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Technician;
+use App\Models\TenantProfile;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -50,6 +52,33 @@ class UserManagementController extends Controller
             'password' => Hash::make($validated['password']),
             'role' => $validated['role'],
         ]);
+
+        if ($user->role === 'technician') {
+            Technician::updateOrCreate(
+                ['user_id' => $user->id],
+                [
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'phone' => null,
+                    'specialization' => 'general',
+                    'active' => true,
+                ]
+            );
+        }
+
+        if ($user->role === 'tenant') {
+            TenantProfile::updateOrCreate(
+                ['user_id' => $user->id],
+                [
+                    'phone' => null,
+                    'emergency_contact_name' => null,
+                    'emergency_contact_phone' => null,
+                    'nid_number' => null,
+                    'job_title' => null,
+                    'employer' => null,
+                ]
+            );
+        }
 
         return response()->json([
             'success' => true,
