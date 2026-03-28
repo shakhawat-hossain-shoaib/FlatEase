@@ -230,6 +230,8 @@ export type DocumentTypeEntity = {
   id: number;
   type_key: 'nid' | 'personal_photo' | 'job_id_card' | string;
   label: string;
+  is_sensitive?: boolean;
+  admin_only_access?: boolean;
 };
 
 export type TenantDocumentEntity = {
@@ -240,6 +242,7 @@ export type TenantDocumentEntity = {
   mime_type: string;
   file_size_bytes: number;
   status: 'uploaded' | 'under_review' | 'approved' | 'rejected' | 'expired';
+  can_view?: boolean;
   rejection_reason?: string | null;
   created_at: string;
   updated_at: string;
@@ -252,6 +255,8 @@ export type TenantDocumentChecklistItem = {
   type_key: string;
   label: string;
   is_required: boolean;
+  is_sensitive?: boolean;
+  admin_only_access?: boolean;
   max_size_mb: number;
   allowed_mimes: string[];
   uploaded: boolean;
@@ -773,12 +778,32 @@ class ApiClient {
     }
   }
 
-  getTenantDocumentDownloadUrl(documentId: number): string {
-    return `${secrets.backendEndpoint}/api/tenant/documents/${documentId}/download`;
+  async openTenantDocument(documentId: number): Promise<void> {
+    try {
+      const response = await this.client.get(`/api/tenant/documents/${documentId}/download`, {
+        responseType: 'blob',
+      });
+
+      const blobUrl = window.URL.createObjectURL(response.data as Blob);
+      window.open(blobUrl, '_blank', 'noopener,noreferrer');
+      window.setTimeout(() => window.URL.revokeObjectURL(blobUrl), 60000);
+    } catch (error) {
+      this.handleError(error);
+    }
   }
 
-  getAdminDocumentDownloadUrl(documentId: number): string {
-    return `${secrets.backendEndpoint}/api/admin/documents/${documentId}/download`;
+  async openAdminDocument(documentId: number): Promise<void> {
+    try {
+      const response = await this.client.get(`/api/admin/documents/${documentId}/download`, {
+        responseType: 'blob',
+      });
+
+      const blobUrl = window.URL.createObjectURL(response.data as Blob);
+      window.open(blobUrl, '_blank', 'noopener,noreferrer');
+      window.setTimeout(() => window.URL.revokeObjectURL(blobUrl), 60000);
+    } catch (error) {
+      this.handleError(error);
+    }
   }
 
   // Handle common errors

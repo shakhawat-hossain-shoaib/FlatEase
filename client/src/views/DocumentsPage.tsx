@@ -200,16 +200,19 @@ export default function DocumentsPage() {
                           </div>
 
                           <div className="d-flex gap-2">
-                            <Button
-                              as="a"
-                              href={api.getTenantDocumentDownloadUrl(doc.id)}
-                              target="_blank"
-                              rel="noreferrer"
-                              variant="outline-primary"
-                              size="sm"
-                            >
-                              Open
-                            </Button>
+                            {doc.can_view !== false ? (
+                              <Button
+                                variant="outline-primary"
+                                size="sm"
+                                onClick={() => void api.openTenantDocument(doc.id)}
+                              >
+                                Open
+                              </Button>
+                            ) : (
+                              <Button variant="outline-secondary" size="sm" disabled>
+                                Admin Only
+                              </Button>
+                            )}
                             <Button
                               variant="outline-danger"
                               size="sm"

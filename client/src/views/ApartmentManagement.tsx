@@ -568,12 +568,9 @@ export default function ApartmentManagement() {
                                 {doc.status}
                               </Badge>
                               <Button
-                                as="a"
-                                href={api.getAdminDocumentDownloadUrl(doc.id)}
-                                target="_blank"
-                                rel="noreferrer"
                                 size="sm"
                                 variant="outline-primary"
+                                onClick={() => void api.openAdminDocument(doc.id)}
                               >
                                 <BsFileEarmarkArrowUp className="me-1" /> Open
                               </Button>
