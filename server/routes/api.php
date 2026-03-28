@@ -2,7 +2,6 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\SessionController;
 use App\Http\Controllers\Admin\UserManagementController;
 use App\Http\Controllers\Api\ComplaintController;
 use App\Http\Controllers\Api\NotificationController;
@@ -22,15 +21,10 @@ Route::middleware(['auth:sanctum'])->get('/user', function (Request $request) {
     return $request->user();
 });
 
-Route::get('/session', [SessionController::class, 'getSession']);
 Route::middleware(['auth:sanctum', 'check.admin'])->group(function () {
-    Route::post('/session', [SessionController::class, 'createSession']);
-    Route::put('/session', [SessionController::class, 'updateSession']);
-    Route::post('/sessions', [SessionController::class, 'viewSessions']);
     Route::get('/admin/users/assignable', [UserManagementController::class, 'assignable']);
     Route::post('/admin/users', [UserManagementController::class, 'store']);
 });
-Route::post('/attendance', [SessionController::class, 'submitAttendance']);
 
 // Complaint routes
 Route::middleware(['auth:sanctum'])->group(function () {
