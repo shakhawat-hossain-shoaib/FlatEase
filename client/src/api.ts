@@ -117,14 +117,7 @@ class ApiClient {
     }
   }
 
-  async submitAttendance(roll: number) {
-    try {
-      const response = await this.client.post('/api/attendance', { roll });
-      return response.data;
-    } catch (error) {
-      this.handleError(error);
-    }
-  }
+
 
   async viewSessions(username: string, password: string) {
     try {
