@@ -102,29 +102,34 @@ export default function ApartmentManagement() {
   const totalVacant = Math.max(0, totalUnits - totalOccupied);
 
   const openUnit = async (unit: UnitEntity) => {
-    const activeAssignment = unit.active_assignment ?? unit.activeAssignment ?? null;
-    const normalized: UnitWithAssignment = {
-      ...unit,
-      activeAssignmentNormalized: activeAssignment,
-    };
+    try {
+      const activeAssignment = unit.active_assignment ?? unit.activeAssignment ?? null;
+      const normalized: UnitWithAssignment = {
+        ...unit,
+        activeAssignmentNormalized: activeAssignment,
+      };
 
-    setSelectedUnit(normalized);
-    setSelectedTenantForAssignment('');
+      setSelectedUnit(normalized);
+      setSelectedTenantForAssignment('');
 
-    if (!activeAssignment?.tenant_user_id) {
-      setTenantDocuments([]);
-      // Load available tenants for assignment
-      setIsLoadingTenants(true);
-      const tenants = await api.getAssignableTenants();
-      setAvailableTenants(tenants ?? []);
-      setIsLoadingTenants(false);
-      return;
+      if (!activeAssignment?.tenant_user_id) {
+        setTenantDocuments([]);
+        // Load available tenants for assignment
+        setIsLoadingTenants(true);
+        const tenants = await api.getAssignableTenants();
+        setAvailableTenants(tenants ?? []);
+        setIsLoadingTenants(false);
+        return;
+      }
+
+      setIsLoadingTenantDocuments(true);
+      const response = await api.getAdminTenantDocuments(activeAssignment.tenant_user_id);
+      setTenantDocuments(response ?? []);
+      setIsLoadingTenantDocuments(false);
+    } catch (error) {
+      console.error('Error opening unit:', error);
+      toast.error('Error loading unit details');
     }
-
-    setIsLoadingTenantDocuments(true);
-    const response = await api.getAdminTenantDocuments(activeAssignment.tenant_user_id);
-    setTenantDocuments(response ?? []);
-    setIsLoadingTenantDocuments(false);
   };
 
   const handleAssignTenant = async () => {
@@ -498,7 +503,9 @@ export default function ApartmentManagement() {
           <Modal.Title>Unit {selectedUnit?.unit_number} Details</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          {!selectedTenant && (
+          {!selectedUnit ? (
+            <p className="text-muted">Loading unit details...</p>
+          ) : !selectedTenant ? (
             <div>
               <p className="text-muted mb-3">This unit is currently unassigned.</p>
               
@@ -525,15 +532,13 @@ export default function ApartmentManagement() {
                 </Form.Group>
               )}
             </div>
-          )}
-
-          {selectedTenant && (
+          ) : (
             <>
               <div className="d-flex flex-wrap gap-4 mb-4">
                 <div>
                   <small className="text-muted d-block">Tenant</small>
                   <div className="fw-semibold d-flex align-items-center gap-2">
-                    <BsPerson /> {selectedTenant.name}
+                    <BsPerson /> {selectedTenant?.name ?? 'Unknown'}
                   </div>
                 </div>
                 <div>
