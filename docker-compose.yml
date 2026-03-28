@@ -69,9 +69,6 @@ services:
       VITE_BACKEND_ENDPOINT: ${VITE_BACKEND_ENDPOINT:-http://localhost:8000/api}
     ports:
       - "${FRONTEND_PORT:-5173}:5173"
-    volumes:
-      - ./client:/app
-      - /app/node_modules
     networks:
       - flatease-network
 
