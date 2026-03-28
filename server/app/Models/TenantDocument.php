@@ -14,6 +14,11 @@ class TenantDocument extends Model
         'document_type_id',
         'storage_disk',
         'storage_path',
+        'is_encrypted',
+        'encryption_algorithm',
+        'encryption_key_version',
+        'encryption_iv',
+        'encryption_tag',
         'original_filename',
         'mime_type',
         'file_size_bytes',
@@ -25,6 +30,7 @@ class TenantDocument extends Model
     ];
 
     protected $casts = [
+        'is_encrypted' => 'boolean',
         'file_size_bytes' => 'integer',
         'verified_at' => 'datetime',
     ];
@@ -42,5 +48,10 @@ class TenantDocument extends Model
     public function verifiedBy()
     {
         return $this->belongsTo(User::class, 'verified_by');
+    }
+
+    public function accessAudits()
+    {
+        return $this->hasMany(DocumentAccessAudit::class, 'tenant_document_id');
     }
 }

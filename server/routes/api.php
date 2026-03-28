@@ -39,6 +39,7 @@ Route::middleware(['auth:sanctum', 'check.admin'])->group(function () {
     Route::patch('/admin/assignments/{assignmentId}/end', [AdminBuildingController::class, 'unassignTenant']);
 
     Route::get('/admin/tenants/{tenantId}/documents', [TenantDocumentController::class, 'adminIndexByTenant']);
+    Route::get('/admin/documents/{documentId}/audits', [TenantDocumentController::class, 'adminAuditByDocument']);
     Route::patch('/admin/documents/{documentId}/status', [TenantDocumentController::class, 'adminUpdateStatus']);
     Route::get('/admin/documents/{documentId}/download', [TenantDocumentController::class, 'download']);
 });
