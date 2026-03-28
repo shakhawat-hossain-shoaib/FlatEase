@@ -14,6 +14,7 @@ class Complaint extends Model
         'assigned_technician_id',
         'assigned_by_id',
         'assigned_at',
+        'sla_due_at',
         'title',
         'category',
         'description',
@@ -24,6 +25,7 @@ class Complaint extends Model
 
     protected $casts = [
         'assigned_at' => 'datetime',
+        'sla_due_at' => 'datetime',
         'resolved_at' => 'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
@@ -37,6 +39,13 @@ class Complaint extends Model
     public function assignedTechnician()
     {
         return $this->belongsTo(User::class, 'assigned_technician_id');
+    }
+
+    public function technicians()
+    {
+        return $this->belongsToMany(Technician::class, 'complaint_technician_assignments')
+            ->withPivot(['assigned_by_admin_id', 'assigned_at', 'assignment_note', 'is_primary'])
+            ->withTimestamps();
     }
 
     public function assignedBy()

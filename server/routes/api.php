@@ -25,10 +25,16 @@ Route::middleware(['auth:sanctum'])->get('/user', function (Request $request) {
 
 Route::middleware(['auth:sanctum', 'check.admin'])->group(function () {
     Route::get('/admin/users/assignable', [UserManagementController::class, 'assignable']);
+    Route::get('/admin/users/assignable-tenants', [UserManagementController::class, 'assignableTenants']);
     Route::post('/admin/users', [UserManagementController::class, 'store']);
+    Route::post('/admin/tenants/create-with-assignment', [UserManagementController::class, 'createTenantWithAssignment']);
 
     Route::get('/admin/buildings', [AdminBuildingController::class, 'index']);
+    Route::post('/admin/buildings', [AdminBuildingController::class, 'store']);
     Route::get('/admin/buildings/{buildingId}', [AdminBuildingController::class, 'show']);
+    Route::patch('/admin/buildings/{buildingId}', [AdminBuildingController::class, 'update']);
+    Route::delete('/admin/buildings/{buildingId}', [AdminBuildingController::class, 'destroy']);
+    Route::get('/admin/buildings/{buildingId}/vacant-units', [AdminBuildingController::class, 'getVacantUnits']);
     Route::post('/admin/units/{unitId}/assign', [AdminBuildingController::class, 'assignTenant']);
     Route::patch('/admin/assignments/{assignmentId}/end', [AdminBuildingController::class, 'unassignTenant']);
 
