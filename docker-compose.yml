@@ -1,0 +1,78 @@
+services:
+  # MySQL Database Service
+  mysql:
+    image: mysql:8.0
+    container_name: flatease-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-Root@1234}
+      MYSQL_DATABASE: ${DB_DATABASE:-flatease_db}
+      MYSQL_USER: ${DB_USERNAME:-flatease}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-Root@1234}
+    ports:
+      - "${DB_PORT:-3306}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./database/migrations:/docker-entrypoint-initdb.d
+    networks:
+      - flatease-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  # Laravel Backend Service
+  backend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.backend
+    container_name: flatease-backend
+    environment:
+      APP_NAME: ${APP_NAME:-FlatEase}
+      APP_ENV: ${APP_ENV:-production}
+      APP_KEY: ${APP_KEY}
+      APP_DEBUG: ${APP_DEBUG:-false}
+      APP_URL: ${APP_URL:-http://localhost:8000}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      DB_CONNECTION: mysql
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_DATABASE: ${DB_DATABASE:-flatease_db}
+      DB_USERNAME: ${DB_USERNAME:-flatease}
+      DB_PASSWORD: ${DB_PASSWORD:-Root@1234}
+      SANCTUM_STATEFUL_DOMAINS: localhost,localhost:8000,localhost:5173,127.0.0.1,127.0.0.1:8000,127.0.0.1:5173
+    ports:
+      - "${BACKEND_PORT:-8000}:80"
+    volumes:
+      - ./server:/var/www/html
+      - ./server/storage:/var/www/html/storage
+      - ./server/bootstrap/cache:/var/www/html/bootstrap/cache
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - flatease-network
+
+  # React Frontend Service
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.frontend
+    container_name: flatease-frontend
+    environment:
+      VITE_BACKEND_ENDPOINT: ${VITE_BACKEND_ENDPOINT:-http://localhost:8000/api}
+    ports:
+      - "${FRONTEND_PORT:-5173}:5173"
+    volumes:
+      - ./client:/app
+      - /app/node_modules
+    networks:
+      - flatease-network
+
+volumes:
+  mysql_data:
+    driver: local
+
+networks:
+  flatease-network:
+    driver: bridge
