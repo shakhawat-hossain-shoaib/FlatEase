@@ -13,14 +13,9 @@ class DefaultAdminSeeder extends Seeder
      */
     public function run(): void
     {
-        $name = env('DEFAULT_ADMIN_NAME');
-        $email = env('DEFAULT_ADMIN_EMAIL');
-        $password = env('DEFAULT_ADMIN_PASSWORD');
-
-        if (!$name || !$email || !$password) {
-            $this->command?->warn('Skipping default admin seed: DEFAULT_ADMIN_NAME/EMAIL/PASSWORD not fully configured.');
-            return;
-        }
+        $name = env('DEFAULT_ADMIN_NAME', 'FlatEase Admin');
+        $email = env('DEFAULT_ADMIN_EMAIL', 'admin@flatease.local');
+        $password = env('DEFAULT_ADMIN_PASSWORD', 'Admin@123456');
 
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
             $this->command?->warn('Skipping default admin seed: DEFAULT_ADMIN_EMAIL is invalid.');

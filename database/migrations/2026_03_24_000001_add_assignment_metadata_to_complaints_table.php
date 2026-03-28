@@ -4,8 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-class AddAssignmentMetadataToComplaintsTable extends Migration
-{
+return new class extends Migration {
     /**
      * Run the migrations.
      *
@@ -44,4 +43,4 @@ class AddAssignmentMetadataToComplaintsTable extends Migration
             $table->dropColumn(['assigned_by_id', 'assigned_at']);
         });
     }
-}
+};

@@ -4,8 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-class CreateComplaintAssignmentHistoriesTable extends Migration
-{
+return new class extends Migration {
     /**
      * Run the migrations.
      *
@@ -56,4 +55,4 @@ class CreateComplaintAssignmentHistoriesTable extends Migration
     {
         Schema::dropIfExists('complaint_assignment_histories');
     }
-}
+};
