@@ -41,4 +41,9 @@ class UnitTenantAssignment extends Model
     {
         return $this->belongsTo(User::class, 'assigned_by');
     }
+
+    public function payments()
+    {
+        return $this->hasMany(TenantPayment::class, 'unit_tenant_assignment_id');
+    }
 }

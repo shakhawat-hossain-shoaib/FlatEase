@@ -12,6 +12,8 @@ import ComplaintsPage from './views/ComplaintsPage';
 import LeaseDetailsPage from './views/LeaseDetailsPage';
 import DocumentsPage from './views/DocumentsPage';
 import TechnicianDashboard from './views/TechnicianDashboard';
+import TenantPaymentsPage from './views/TenantPaymentsPage';
+import AdminPaymentsPage from './views/AdminPaymentsPage';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './index.css';
 import { Toaster } from 'react-hot-toast';
@@ -112,6 +114,14 @@ function App() {
             }
           />
           <Route
+            path="/admin/payments"
+            element={
+              <RoleGuard role="admin">
+                <AdminPaymentsPage />
+              </RoleGuard>
+            }
+          />
+          <Route
             path="/tenant"
             element={
               <RoleGuard role="tenant">
@@ -140,6 +150,14 @@ function App() {
             element={
               <RoleGuard role="tenant">
                 <DocumentsPage />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="/tenant/payments"
+            element={
+              <RoleGuard role="tenant">
+                <TenantPaymentsPage />
               </RoleGuard>
             }
           />
