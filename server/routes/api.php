@@ -22,6 +22,7 @@ Route::middleware(['auth:sanctum'])->get('/user', function (Request $request) {
 });
 
 Route::middleware(['auth:sanctum', 'check.admin'])->group(function () {
+    Route::get('/admin/users/assignable', [UserManagementController::class, 'assignable']);
     Route::post('/admin/users', [UserManagementController::class, 'store']);
 });
 

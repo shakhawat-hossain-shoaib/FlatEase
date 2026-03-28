@@ -11,7 +11,7 @@ This project is built as an academic and portfolio-ready application using **Lar
 | ID           | Name               | Email                                      | Role      |
 |--------------|--------------------|--------------------------------------------|-----------|
 | 20230104081  | Shakhawat Hossain  | shakhawat.cse.20230104081@aust.edu          | Backend   |
-| 20230104076  | Partha Ratul       | parthas.ratul@gmail.com                    | Backend   |
+| 20230104076  | Partha Sharma       | parthas.ratul@gmail.com                    | Backend   |
 | 20230104079  | MD Abid Khan       | gisankhan299@gmail.com                     | Frontend |
 | 20230104084  | Hasan Al Mahmud    | mahi708b@gmail.com                         | Frontend |
 

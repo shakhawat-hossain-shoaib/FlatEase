@@ -7,8 +7,10 @@ use App\Models\User;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rules;
+use Throwable;
 
 class RegisteredUserController extends Controller
 {
@@ -47,7 +49,17 @@ class RegisteredUserController extends Controller
             'role' => 'tenant',
         ]);
 
-        event(new Registered($user));
+        try {
+            event(new Registered($user));
+        } catch (Throwable $exception) {
+            // User account is already created; do not fail registration because
+            // optional post-registration notifications are unavailable.
+            Log::warning('Registered event dispatch failed after user creation.', [
+                'user_id' => $user->id,
+                'email' => $user->email,
+                'error' => $exception->getMessage(),
+            ]);
+        }
 
         return response()->json([
             'success' => true,

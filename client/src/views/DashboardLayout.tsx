@@ -31,11 +31,14 @@ export function DashboardLayout({ role, children }: DashboardLayoutProps) {
 
     setIsLoggingOut(true);
 
+    // Make logout UX immediate: clear local auth state and navigate first.
+    // Backend session invalidation is attempted after redirect.
+    clearStoredAuthUser();
+    navigate('/login', { replace: true });
+
     try {
       await api.logout();
     } finally {
-      clearStoredAuthUser();
-      navigate('/login', { replace: true });
       setIsLoggingOut(false);
     }
   };
