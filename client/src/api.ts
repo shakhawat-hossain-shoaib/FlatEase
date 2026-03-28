@@ -280,6 +280,120 @@ export type CreateTenantWithAssignmentResponse = {
   };
 };
 
+export type TenantPaymentCharge = {
+  key: string;
+  label: string;
+  category: 'rent' | 'utility';
+  amount: number;
+};
+
+export type TenantRecentPayment = {
+  id: number;
+  month: string;
+  due_date: string;
+  amount: number;
+  status: 'pending' | 'partially_paid' | 'paid' | 'overdue';
+  paid_at?: string | null;
+};
+
+export type TenantNotice = {
+  id: string;
+  title: string;
+  message: string;
+  created_at?: string;
+  read_at?: string | null;
+  is_read: boolean;
+};
+
+export type AdminTenantPaymentOption = {
+  id: number;
+  name: string;
+  email: string;
+  unit_number?: string | null;
+  assignment_id: number;
+};
+
+export type TenantPaymentRecordEntity = {
+  id: number;
+  tenant_user_id: number;
+  unit_tenant_assignment_id?: number | null;
+  billing_month: string;
+  due_date: string;
+  rent_amount: string;
+  utility_amount: string;
+  total_amount: string;
+  amount_paid: string;
+  status: 'pending' | 'partially_paid' | 'paid' | 'overdue';
+  paid_at?: string | null;
+  payment_method?: string | null;
+  transaction_ref?: string | null;
+  notes?: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type TenantMonthlyPaymentSummary = {
+  month: string;
+  currency: string;
+  billing_period_start: string;
+  billing_period_end: string;
+  due_date: string;
+  next_payment?: {
+    date: string;
+    amount: number;
+    status?: 'pending' | 'partially_paid' | 'paid' | 'overdue';
+  };
+  unit: {
+    id: number;
+    unit_number?: string | null;
+    floor_label?: string | null;
+    building_name?: string | null;
+  };
+  charges: TenantPaymentCharge[];
+  subtotal_rent: number;
+  subtotal_utility: number;
+  total_due: number;
+  status: 'pending' | 'partially_paid' | 'paid' | 'overdue';
+  recent_payments?: TenantRecentPayment[];
+  notice_count?: number;
+  unread_notice_count?: number;
+  notices?: TenantNotice[];
+};
+
+export type AdminDashboardStats = {
+  total_tenants: number;
+  active_leases: number;
+  vacant_units: number;
+  total_complaints: number;
+};
+
+export type AdminRevenueByBuilding = {
+  building_id: number;
+  building_name: string;
+  active_leases: number;
+  rent_expected: number;
+  utility_expected: number;
+  total_expected: number;
+};
+
+export type AdminDashboardActivity = {
+  type: 'payment' | 'complaint';
+  title: string;
+  description: string;
+  meta: string;
+  created_at: string;
+};
+
+export type AdminDashboardSummary = {
+  stats: AdminDashboardStats;
+  revenue_overview: {
+    currency: string;
+    total_expected: number;
+    by_building: AdminRevenueByBuilding[];
+  };
+  recent_activity: AdminDashboardActivity[];
+};
+
 class ApiClient {
   private client: AxiosInstance;
 
@@ -594,6 +708,30 @@ class ApiClient {
     }
   }
 
+  async getAdminDashboardSummary(): Promise<AdminDashboardSummary | undefined> {
+    try {
+      const response = await this.client.get('/api/admin/dashboard/summary');
+      return response.data;
+    } catch (error) {
+      this.handleError(error);
+      return undefined;
+    }
+  }
+
+  async createAdminBroadcastNotification(payload: {
+    title: string;
+    message: string;
+  }): Promise<BasicApiResponse | undefined> {
+    try {
+      const headers = await this.csrfHeaders();
+      const response = await this.client.post('/api/admin/notifications/broadcast', payload, { headers });
+      return response.data;
+    } catch (error) {
+      this.handleError(error);
+      return undefined;
+    }
+  }
+
   async getAdminBuildings(): Promise<BuildingEntity[] | undefined> {
     try {
       const response = await this.client.get('/api/admin/buildings');
@@ -716,9 +854,59 @@ class ApiClient {
     }
   }
 
+  async getAdminTenantPaymentOptions(): Promise<AdminTenantPaymentOption[] | undefined> {
+    try {
+      const response = await this.client.get('/api/admin/tenants/payment-options');
+      return response.data;
+    } catch (error) {
+      this.handleError(error);
+      return undefined;
+    }
+  }
+
+  async getAdminTenantPayments(tenantId: number): Promise<PaginatedResponse<TenantPaymentRecordEntity> | undefined> {
+    try {
+      const response = await this.client.get(`/api/admin/tenants/${tenantId}/payments`);
+      return response.data;
+    } catch (error) {
+      this.handleError(error);
+      return undefined;
+    }
+  }
+
+  async updateAdminPayment(
+    paymentId: number,
+    payload: {
+      amount_paid?: number;
+      payment_method?: string;
+      transaction_ref?: string;
+      notes?: string;
+      mark_paid?: boolean;
+    }
+  ): Promise<TenantPaymentRecordEntity | undefined> {
+    try {
+      const headers = await this.csrfHeaders();
+      const response = await this.client.patch(`/api/admin/payments/${paymentId}`, payload, { headers });
+      return response.data;
+    } catch (error) {
+      this.handleError(error);
+      return undefined;
+    }
+  }
+
   async getTenantDocumentChecklist(): Promise<TenantDocumentChecklistItem[] | undefined> {
     try {
       const response = await this.client.get('/api/tenant/documents/checklist');
+      return response.data;
+    } catch (error) {
+      this.handleError(error);
+      return undefined;
+    }
+  }
+
+  async getTenantCurrentPaymentSummary(): Promise<TenantMonthlyPaymentSummary | undefined> {
+    try {
+      const response = await this.client.get('/api/tenant/payments/current-summary');
       return response.data;
     } catch (error) {
       this.handleError(error);

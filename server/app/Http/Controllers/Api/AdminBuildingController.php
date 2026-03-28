@@ -184,7 +184,10 @@ class AdminBuildingController extends Controller
         $activeAssignment = $unit->activeAssignment()->first();
 
         if ($activeAssignment) {
-            return response()->json(['error' => 'Unit already has an active tenant assignment.'], 422);
+            return response()->json([
+                'success' => false,
+                'message' => 'Unit already has an active tenant assignment.',
+            ], 422);
         }
 
         $assignment = UnitTenantAssignment::create([
@@ -200,7 +203,11 @@ class AdminBuildingController extends Controller
         $unit->occupancy_status = 'occupied';
         $unit->save();
 
-        return response()->json($assignment->load(['unit', 'tenant:id,name,email']), 201);
+        return response()->json([
+            'success' => true,
+            'message' => 'Tenant assigned successfully.',
+            'assignment' => $assignment->load(['unit', 'tenant:id,name,email']),
+        ], 201);
     }
 
     public function unassignTenant(Request $request, $assignmentId)
@@ -212,7 +219,18 @@ class AdminBuildingController extends Controller
         $assignment = UnitTenantAssignment::with('unit')->findOrFail($assignmentId);
 
         if ($assignment->status !== 'active') {
-            return response()->json(['error' => 'Only active assignments can be ended.'], 422);
+            if (in_array((string) $assignment->status, ['ended', 'terminated'], true)) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Tenant is already unassigned from this unit.',
+                    'assignment' => $assignment->fresh(['unit', 'tenant:id,name,email']),
+                ], 200);
+            }
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Only active assignments can be ended.',
+            ], 422);
         }
 
         $assignment->status = 'ended';
@@ -225,7 +243,11 @@ class AdminBuildingController extends Controller
             $unit->save();
         }
 
-        return response()->json($assignment->fresh(['unit', 'tenant:id,name,email']), 200);
+        return response()->json([
+            'success' => true,
+            'message' => 'Tenant unassigned successfully.',
+            'assignment' => $assignment->fresh(['unit', 'tenant:id,name,email']),
+        ], 200);
     }
 
     public function getVacantUnits($buildingId)

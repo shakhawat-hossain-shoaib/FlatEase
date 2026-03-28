@@ -3,10 +3,12 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\UserManagementController;
+use App\Http\Controllers\Api\AdminDashboardController;
 use App\Http\Controllers\Api\AdminBuildingController;
 use App\Http\Controllers\Api\ComplaintController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\TenantDocumentController;
+use App\Http\Controllers\Api\TenantPaymentController;
 
 /*
 |--------------------------------------------------------------------------
@@ -24,6 +26,9 @@ Route::middleware(['auth:sanctum'])->get('/user', function (Request $request) {
 });
 
 Route::middleware(['auth:sanctum', 'check.admin'])->group(function () {
+    Route::get('/admin/dashboard/summary', [AdminDashboardController::class, 'summary']);
+    Route::post('/admin/notifications/broadcast', [NotificationController::class, 'adminBroadcast']);
+    Route::get('/admin/tenants/payment-options', [TenantPaymentController::class, 'adminTenantOptions']);
     Route::get('/admin/users/assignable', [UserManagementController::class, 'assignable']);
     Route::get('/admin/users/assignable-tenants', [UserManagementController::class, 'assignableTenants']);
     Route::post('/admin/users', [UserManagementController::class, 'store']);
@@ -39,6 +44,8 @@ Route::middleware(['auth:sanctum', 'check.admin'])->group(function () {
     Route::patch('/admin/assignments/{assignmentId}/end', [AdminBuildingController::class, 'unassignTenant']);
 
     Route::get('/admin/tenants/{tenantId}/documents', [TenantDocumentController::class, 'adminIndexByTenant']);
+    Route::get('/admin/tenants/{tenantId}/payments', [TenantPaymentController::class, 'adminIndexByTenant']);
+    Route::patch('/admin/payments/{paymentId}', [TenantPaymentController::class, 'adminUpdate']);
     Route::get('/admin/documents/{documentId}/audits', [TenantDocumentController::class, 'adminAuditByDocument']);
     Route::patch('/admin/documents/{documentId}/status', [TenantDocumentController::class, 'adminUpdateStatus']);
     Route::get('/admin/documents/{documentId}/download', [TenantDocumentController::class, 'download']);
@@ -71,6 +78,7 @@ Route::middleware(['auth:sanctum', 'check.technician'])->group(function () {
 });
 
 Route::middleware(['auth:sanctum'])->group(function () {
+    Route::get('/tenant/payments/current-summary', [TenantPaymentController::class, 'currentSummary']);
     Route::get('/tenant/documents/checklist', [TenantDocumentController::class, 'checklist']);
     Route::get('/tenant/documents', [TenantDocumentController::class, 'index']);
     Route::post('/tenant/documents', [TenantDocumentController::class, 'store']);

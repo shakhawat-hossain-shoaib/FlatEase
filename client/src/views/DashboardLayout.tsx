@@ -5,6 +5,7 @@ import {
   BsGrid,
   BsBuilding,
   BsPeople,
+  BsCash,
   BsFolder,
   BsFileEarmarkText,
   BsChatDots,
@@ -51,6 +52,7 @@ export function DashboardLayout({ role, children }: DashboardLayoutProps) {
           { label: 'Dashboard', icon: BsGrid, to: '/admin' },
           { label: 'Buildings & Tenants', icon: BsBuilding, to: '/admin/apartments' },
           { label: 'Users', icon: BsPeople, to: '/admin/users' },
+          { label: 'Payments', icon: BsCash, to: '/admin/payments' },
           { label: 'Complaints', icon: BsChatDots, to: '/admin/complaints' },
         ]
       : role === 'Technician'
@@ -61,6 +63,7 @@ export function DashboardLayout({ role, children }: DashboardLayoutProps) {
       : [
           { label: 'Dashboard', icon: BsGrid, to: '/tenant' },
           { label: 'My Lease', icon: BsFileEarmarkText, to: '/tenant/lease' },
+          { label: 'Payments', icon: BsCash, to: '/tenant/payments' },
           { label: 'Documents', icon: BsFolder, to: '/tenant/documents' },
           { label: 'Complaints', icon: BsChatDots, to: '/tenant/complaints' },
         ];
