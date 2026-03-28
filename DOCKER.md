@@ -1,184 +1,108 @@
-# FlatEase Docker Setup
+# FlatEase Docker Development Guide
 
-This project is now fully Dockerized with separate services for frontend, backend, and database.
+This document defines the team standard for local development.
 
-## Architecture
+## Goal
 
-The Docker setup includes three main services:
+Provide one reproducible local setup for every developer using Docker, MySQL, Laravel migrations, and idempotent seeders.
 
-- **Frontend**: React/Vite application running on port 5173
-- **Backend**: Laravel API running on port 8000
-- **Database**: MySQL 8.0 running on port 3306
+## Team Workflow
+
+1. Clone repository.
+2. Copy environment template.
+3. Start containers.
+4. Run migrations and seeders.
+5. Start coding.
 
 ## Prerequisites
 
 - Docker 20.10+
-- Docker Compose 2.0+
+- Docker Compose v2+
 
-## Getting Started
-
-### 1. Build and Start Services
+## First-Time Setup
 
 ```bash
-# Using the provided script
+git clone <your-repository-url>
+cd FlatEase
+git checkout Dockerizing
+cp .env.example .env
+docker compose up -d --build
+docker compose exec -T backend php artisan migrate --seed --force --no-interaction
+```
+
+Alternative one-command setup:
+
+```bash
+chmod +x docker-init.sh
 ./docker-init.sh
-
-# Or manually
-docker-compose up -d --build
 ```
 
-### 2. Initialize the Database
+## Access URLs
+
+- Frontend: http://localhost:5173
+- Backend: http://localhost:8000
+- MySQL: localhost:3306
+
+## Database-First Rules
+
+1. All schema changes must be made through Laravel migrations under `server/database/migrations`.
+2. Do not rely on ad hoc SQL bootstrap files for active schema changes.
+3. Keep seeders idempotent using `updateOrCreate` or `updateOrInsert`.
+4. After pulling new code, rerun migrations.
+
+## Daily Commands
 
 ```bash
-# Run migrations
-docker-compose exec backend php artisan migrate
+# Start
 
-# Seed the database (if seeders exist)
-docker-compose exec backend php artisan db:seed
+docker compose up -d
+
+# Pull latest and apply schema changes
+git pull
+docker compose exec -T backend php artisan migrate --force
+
+# Rerun seed safely (idempotent)
+docker compose exec -T backend php artisan db:seed --force --no-interaction
+
+# Logs
+docker compose logs -f
+
+# Stop
+docker compose down
 ```
 
-### 3. Generate App Key (if needed)
+## Reset Local Database
+
+Use this only when you intentionally want a clean local DB:
 
 ```bash
-docker-compose exec backend php artisan key:generate
+docker compose down -v
+docker compose up -d --build
+docker compose exec -T backend php artisan migrate --seed --force --no-interaction
 ```
 
-### 4. Access the Application
+## Seeded Default Accounts
 
-- **Frontend**: http://localhost:5173
-- **Backend API**: http://localhost:8000
-- **MySQL**: localhost:3306
+The following values come from `.env`:
 
-## Configuration
+- `DEFAULT_ADMIN_EMAIL`
+- `DEFAULT_ADMIN_PASSWORD`
+- `DEFAULT_TENANT_EMAIL`
+- `DEFAULT_TENANT_PASSWORD`
 
-### Environment Variables
-
-The project uses `.env.docker` for Docker-specific configuration. To customize:
-
-1. Copy `.env.docker` to `.env.local.docker`
-2. Update the values as needed
-3. Start services: `docker-compose --env-file .env.local.docker up -d`
-
-Key environment variables:
-- `DB_PASSWORD`: MySQL root password
-- `DB_DATABASE`: Database name
-- `APP_KEY`: Laravel app key
-- `BACKEND_PORT`: Port for backend (default: 8000)
-- `FRONTEND_PORT`: Port for frontend (default: 5173)
-
-## Common Commands
-
-### View Logs
-
-```bash
-# All services
-docker-compose logs -f
-
-# Specific service
-docker-compose logs -f backend
-docker-compose logs -f frontend
-docker-compose logs -f mysql
-```
-
-### Run Commands in Containers
-
-```bash
-# Laravel Artisan commands
-docker-compose exec backend php artisan [command]
-
-# Database access
-docker-compose exec mysql mysql -u root -p flatease_db
-
-# Frontend build
-docker-compose exec frontend npm run build
-```
-
-### Stop Services
-
-```bash
-# Stop and keep volumes
-docker-compose stop
-
-# Stop and remove containers (keep volumes)
-docker-compose down
-
-# Stop and remove everything including volumes
-docker-compose down -v
-```
-
-## Development Workflow
-
-### Hot Reload Frontend
-
-Frontend changes are automatically reflected due to volume mounts. The Vite dev server will hot-reload.
-
-### Backend Development
-
-Backend files are mounted as volumes for development. Use:
-
-```bash
-docker-compose exec backend php artisan tinker
-```
-
-### Database Development
-
-Use any MySQL client to connect:
-
-```bash
-mysql -h 127.0.0.1 -u flatease -p flatease_db
-```
+Update these values in `.env` if your team needs different local credentials.
 
 ## Troubleshooting
 
-### Port Already in Use
+If backend cannot connect to MySQL:
 
-If ports 8000, 5173, or 3306 are already in use:
+1. Verify containers are healthy: `docker compose ps`
+2. Verify DB env in `.env` (`DB_HOST=mysql`, `DB_DATABASE=flatease_db`)
+3. Retry migrations: `docker compose exec -T backend php artisan migrate --force`
 
-```bash
-# Change ports in .env.docker
-BACKEND_PORT=8001
-FRONTEND_PORT=5174
-DB_PORT=3307
-
-# Then start with custom env file
-docker-compose --env-file .env.docker up -d
-```
-
-### Container Won't Start
+If you changed env values:
 
 ```bash
-# Check logs
-docker-compose logs [service_name]
-
-# Rebuild the image
-docker-compose build --no-cache [service_name]
+docker compose down
+docker compose up -d --build
 ```
-
-### Database Migration Issues
-
-```bash
-# Check database connection
-docker-compose exec backend php artisan migrate:status
-
-# Rollback and remigrate
-docker-compose exec backend php artisan migrate:reset
-docker-compose exec backend php artisan migrate
-```
-
-## Production Deployment
-
-For production deployment:
-
-1. Use environment-specific variables in `.env.production.docker`
-2. Set `APP_ENV=production` and `APP_DEBUG=false`
-3. Use proper secrets management (e.g., Docker Secrets, environment files)
-4. Configure proper networking and reverse proxy (Nginx)
-5. Set up proper volume management for persistent data
-6. Configure health checks and restart policies
-
-## Useful Resources
-
-- [Docker Documentation](https://docs.docker.com/)
-- [Docker Compose Documentation](https://docs.docker.com/compose/)
-- [Laravel Docker Guide](https://laravel.com/docs/8/deployment)
-- [Vite Documentation](https://vitejs.dev/)

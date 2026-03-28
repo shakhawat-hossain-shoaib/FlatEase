@@ -3,16 +3,17 @@ services:
   mysql:
     image: mysql:8.0
     container_name: flatease-mysql
+    env_file:
+      - .env
     environment:
-      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-Root@1234}
-      MYSQL_DATABASE: ${DB_DATABASE:-flatease_db}
-      MYSQL_USER: ${DB_USERNAME:-flatease}
-      MYSQL_PASSWORD: ${DB_PASSWORD:-Root@1234}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-Root@1234}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-flatease_db}
+      MYSQL_USER: ${MYSQL_USER:-flatease}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-Root@1234}
     ports:
       - "${DB_PORT:-3306}:3306"
     volumes:
       - mysql_data:/var/lib/mysql
-      - ./database/migrations:/docker-entrypoint-initdb.d
     networks:
       - flatease-network
     healthcheck:
@@ -26,19 +27,21 @@ services:
       context: .
       dockerfile: docker/Dockerfile.backend
     container_name: flatease-backend
+    env_file:
+      - .env
     environment:
       APP_NAME: ${APP_NAME:-FlatEase}
-      APP_ENV: ${APP_ENV:-production}
-      APP_KEY: ${APP_KEY}
-      APP_DEBUG: ${APP_DEBUG:-false}
+      APP_ENV: ${APP_ENV:-local}
+      APP_KEY: ${APP_KEY:-base64:Q2m8zVf4oHz9X2jWnZ7xq3M2hH1Ck8y8m0lL7sQv2wE=}
+      APP_DEBUG: ${APP_DEBUG:-true}
       APP_URL: ${APP_URL:-http://localhost:8000}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
-      LOG_LEVEL: ${LOG_LEVEL:-info}
-      DB_CONNECTION: mysql
-      DB_HOST: mysql
-      DB_PORT: 3306
+      LOG_LEVEL: ${LOG_LEVEL:-debug}
+      DB_CONNECTION: ${DB_CONNECTION:-mysql}
+      DB_HOST: ${DB_HOST:-mysql}
+      DB_PORT: ${DB_PORT:-3306}
       DB_DATABASE: ${DB_DATABASE:-flatease_db}
-      DB_USERNAME: ${DB_USERNAME:-flatease}
+      DB_USERNAME: ${DB_USERNAME:-root}
       DB_PASSWORD: ${DB_PASSWORD:-Root@1234}
       SANCTUM_STATEFUL_DOMAINS: localhost,localhost:8000,localhost:5173,127.0.0.1,127.0.0.1:8000,127.0.0.1:5173
     ports:
@@ -59,6 +62,8 @@ services:
       context: .
       dockerfile: docker/Dockerfile.frontend
     container_name: flatease-frontend
+    env_file:
+      - .env
     environment:
       VITE_BACKEND_ENDPOINT: ${VITE_BACKEND_ENDPOINT:-http://localhost:8000/api}
     ports:

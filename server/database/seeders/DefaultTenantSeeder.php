@@ -13,9 +13,9 @@ class DefaultTenantSeeder extends Seeder
      */
     public function run(): void
     {
-        $name = env('DEFAULT_TENANT_NAME', 'Partha');
-        $email = env('DEFAULT_TENANT_EMAIL', 'partha@gmail.com');
-        $password = env('DEFAULT_TENANT_PASSWORD', '12345678');
+        $name = env('DEFAULT_TENANT_NAME', 'FlatEase Tenant');
+        $email = env('DEFAULT_TENANT_EMAIL', 'tenant@flatease.local');
+        $password = env('DEFAULT_TENANT_PASSWORD', 'Tenant@123456');
 
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
             $this->command?->warn('Skipping default tenant seed: DEFAULT_TENANT_EMAIL is invalid.');
