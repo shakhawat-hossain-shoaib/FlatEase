@@ -142,6 +142,13 @@ export type TenantProfileEntity = {
   emergency_contact_phone?: string | null;
 };
 
+export type UserEntity = {
+  id: number;
+  name: string;
+  email: string;
+  role: 'admin' | 'tenant' | 'technician';
+};
+
 export type UnitAssignmentEntity = {
   id: number;
   unit_id: number;
@@ -185,11 +192,38 @@ export type BuildingEntity = {
   id: number;
   name: string;
   code?: string | null;
+  address_line?: string | null;
+  city?: string | null;
+  state?: string | null;
+  postal_code?: string | null;
+  country?: string | null;
   total_floors: number;
   units_count?: number;
   occupied_units_count?: number;
   vacant_units_count?: number;
   floors?: FloorEntity[];
+};
+
+export type CreateBuildingPayload = {
+  name: string;
+  code?: string;
+  address_line?: string;
+  city?: string;
+  state?: string;
+  postal_code?: string;
+  country?: string;
+  total_floors: number;
+  units_per_floor: number;
+};
+
+export type UpdateBuildingPayload = {
+  name: string;
+  code?: string;
+  address_line?: string;
+  city?: string;
+  state?: string;
+  postal_code?: string;
+  country?: string;
 };
 
 export type DocumentTypeEntity = {
@@ -222,6 +256,23 @@ export type TenantDocumentChecklistItem = {
   allowed_mimes: string[];
   uploaded: boolean;
   latest_document?: TenantDocumentEntity | null;
+};
+
+export type CreateTenantWithAssignmentResponse = {
+  success: boolean;
+  message: string;
+  tenant: {
+    id: number;
+    name: string;
+    email: string;
+    password: string;
+    role: 'tenant';
+  };
+  assignment: {
+    id: number;
+    unit_id: number;
+    unit_number: string;
+  };
 };
 
 class ApiClient {
@@ -551,6 +602,108 @@ class ApiClient {
   async getAdminBuilding(buildingId: number): Promise<BuildingEntity | undefined> {
     try {
       const response = await this.client.get(`/api/admin/buildings/${buildingId}`);
+      return response.data;
+    } catch (error) {
+      this.handleError(error);
+      return undefined;
+    }
+  }
+
+  async createAdminBuilding(payload: CreateBuildingPayload): Promise<BuildingEntity | undefined> {
+    try {
+      const headers = await this.csrfHeaders();
+      const response = await this.client.post('/api/admin/buildings', payload, { headers });
+      return response.data;
+    } catch (error) {
+      this.handleError(error);
+      return undefined;
+    }
+  }
+
+  async deleteAdminBuilding(buildingId: number): Promise<BasicApiResponse | undefined> {
+    try {
+      const headers = await this.csrfHeaders();
+      const response = await this.client.delete(`/api/admin/buildings/${buildingId}`, { headers });
+      return response.data;
+    } catch (error) {
+      this.handleError(error);
+      return undefined;
+    }
+  }
+
+  async updateAdminBuilding(buildingId: number, payload: UpdateBuildingPayload): Promise<BuildingEntity | undefined> {
+    try {
+      const headers = await this.csrfHeaders();
+      const response = await this.client.patch(`/api/admin/buildings/${buildingId}`, payload, { headers });
+      return response.data;
+    } catch (error) {
+      this.handleError(error);
+      return undefined;
+    }
+  }
+
+  async getAssignableTenants(): Promise<UserEntity[] | undefined> {
+    try {
+      const response = await this.client.get('/api/admin/users/assignable-tenants');
+      return response.data;
+    } catch (error) {
+      this.handleError(error);
+      return undefined;
+    }
+  }
+
+  async assignTenantToUnit(unitId: number, tenantUserId: number): Promise<BasicApiResponse | undefined> {
+    try {
+      const headers = await this.csrfHeaders();
+      const response = await this.client.post(`/api/admin/units/${unitId}/assign`, 
+        { tenant_user_id: tenantUserId }, 
+        { headers }
+      );
+      return response.data;
+    } catch (error) {
+      this.handleError(error);
+      return undefined;
+    }
+  }
+
+  async unassignTenantFromUnit(assignmentId: number): Promise<BasicApiResponse | undefined> {
+    try {
+      const headers = await this.csrfHeaders();
+      const response = await this.client.patch(`/api/admin/assignments/${assignmentId}/end`, {}, { headers });
+      return response.data;
+    } catch (error) {
+      this.handleError(error);
+      return undefined;
+    }
+  }
+
+  async createTenantWithAssignment(data: {
+    name: string;
+    email: string;
+    phone?: string;
+    emergency_contact_name?: string;
+    emergency_contact_phone?: string;
+    nid_number?: string;
+    job_title?: string;
+    employer?: string;
+    unit_id: number;
+    lease_start_date?: string;
+    lease_end_date?: string;
+    rent_amount?: string;
+  }): Promise<CreateTenantWithAssignmentResponse | undefined> {
+    try {
+      const headers = await this.csrfHeaders();
+      const response = await this.client.post('/api/admin/tenants/create-with-assignment', data, { headers });
+      return response.data;
+    } catch (error) {
+      this.handleError(error);
+      return undefined;
+    }
+  }
+
+  async getVacantUnits(buildingId: number): Promise<UnitEntity[] | undefined> {
+    try {
+      const response = await this.client.get(`/api/admin/buildings/${buildingId}/vacant-units`);
       return response.data;
     } catch (error) {
       this.handleError(error);

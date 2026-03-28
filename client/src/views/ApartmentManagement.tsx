@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Badge, Button, Card, Col, Modal, Row } from 'react-bootstrap';
-import { BsBuilding, BsFileEarmarkArrowUp, BsGrid, BsPerson, BsTelephone } from 'react-icons/bs';
-import ApiClient, { BuildingEntity, FloorEntity, TenantDocumentEntity, UnitEntity } from '../api';
+import { Badge, Button, Card, Col, Form, Modal, Row } from 'react-bootstrap';
+import { BsBuilding, BsFileEarmarkArrowUp, BsGrid, BsPencil, BsPerson, BsPlus, BsTelephone, BsTrash } from 'react-icons/bs';
+import ApiClient, { BuildingEntity, CreateBuildingPayload, FloorEntity, TenantDocumentEntity, UnitEntity, UpdateBuildingPayload, UserEntity } from '../api';
 import { DashboardLayout } from './DashboardLayout';
+import toast from 'react-hot-toast';
 
 type UnitWithAssignment = UnitEntity & {
   activeAssignmentNormalized?: UnitEntity['active_assignment'];
@@ -18,15 +19,41 @@ export default function ApartmentManagement() {
   const [selectedUnit, setSelectedUnit] = useState<UnitWithAssignment | null>(null);
   const [tenantDocuments, setTenantDocuments] = useState<TenantDocumentEntity[]>([]);
   const [isLoadingTenantDocuments, setIsLoadingTenantDocuments] = useState(false);
+  const [availableTenants, setAvailableTenants] = useState<UserEntity[]>([]);
+  const [isLoadingTenants, setIsLoadingTenants] = useState(false);
+  const [selectedTenantForAssignment, setSelectedTenantForAssignment] = useState<number | ''>('');
+  const [isAssigning, setIsAssigning] = useState(false);
+  const [isCreateBuildingModalOpen, setIsCreateBuildingModalOpen] = useState(false);
+  const [isEditBuildingModalOpen, setIsEditBuildingModalOpen] = useState(false);
+  const [isCreatingBuilding, setIsCreatingBuilding] = useState(false);
+  const [isUpdatingBuilding, setIsUpdatingBuilding] = useState(false);
+  const [isDeletingBuilding, setIsDeletingBuilding] = useState(false);
+  const [createBuildingForm, setCreateBuildingForm] = useState<CreateBuildingPayload>({
+    name: '',
+    code: '',
+    address_line: '',
+    city: '',
+    state: '',
+    postal_code: '',
+    country: '',
+    total_floors: 4,
+    units_per_floor: 4,
+  });
+  const [editBuildingForm, setEditBuildingForm] = useState<UpdateBuildingPayload>({
+    name: '',
+    code: '',
+    address_line: '',
+    city: '',
+    state: '',
+    postal_code: '',
+    country: '',
+  });
 
   useEffect(() => {
     const loadBuildings = async () => {
       setIsLoadingBuildings(true);
       const response = await api.getAdminBuildings();
-      if (response && response.length > 0) {
-        setBuildings(response);
-        setSelectedBuildingId((current) => current ?? response[0].id);
-      }
+      setBuildings(response ?? []);
       setIsLoadingBuildings(false);
     };
 
@@ -53,6 +80,23 @@ export default function ApartmentManagement() {
     .slice()
     .sort((a, b) => a.sort_order - b.sort_order) as FloorEntity[];
 
+  const refreshBuildingData = async (buildingIdToSelect?: number) => {
+    const updatedBuildings = await api.getAdminBuildings();
+    if (updatedBuildings) {
+      setBuildings(updatedBuildings);
+
+      const targetBuildingId = buildingIdToSelect ?? selectedBuildingId ?? null;
+      setSelectedBuildingId(targetBuildingId);
+
+      if (targetBuildingId) {
+        const updated = await api.getAdminBuilding(targetBuildingId);
+        setSelectedBuilding(updated ?? null);
+      } else {
+        setSelectedBuilding(null);
+      }
+    }
+  };
+
   const totalUnits = useMemo(() => buildings.reduce((sum, item) => sum + (item.units_count ?? 0), 0), [buildings]);
   const totalOccupied = useMemo(() => buildings.reduce((sum, item) => sum + (item.occupied_units_count ?? 0), 0), [buildings]);
   const totalVacant = Math.max(0, totalUnits - totalOccupied);
@@ -65,9 +109,15 @@ export default function ApartmentManagement() {
     };
 
     setSelectedUnit(normalized);
+    setSelectedTenantForAssignment('');
 
     if (!activeAssignment?.tenant_user_id) {
       setTenantDocuments([]);
+      // Load available tenants for assignment
+      setIsLoadingTenants(true);
+      const tenants = await api.getAssignableTenants();
+      setAvailableTenants(tenants ?? []);
+      setIsLoadingTenants(false);
       return;
     }
 
@@ -75,6 +125,167 @@ export default function ApartmentManagement() {
     const response = await api.getAdminTenantDocuments(activeAssignment.tenant_user_id);
     setTenantDocuments(response ?? []);
     setIsLoadingTenantDocuments(false);
+  };
+
+  const handleAssignTenant = async () => {
+    if (!selectedUnit || !selectedTenantForAssignment) {
+      toast.error('Please select a tenant');
+      return;
+    }
+
+    setIsAssigning(true);
+    const response = await api.assignTenantToUnit(selectedUnit.id, Number(selectedTenantForAssignment));
+    
+    if (response?.success) {
+      toast.success('Tenant assigned successfully');
+      setSelectedUnit(null);
+      await refreshBuildingData(selectedBuildingId ?? undefined);
+    }
+    setIsAssigning(false);
+  };
+
+  const handleUnassignTenant = async () => {
+    if (!selectedUnit?.activeAssignmentNormalized?.id) {
+      toast.error('No assignment to remove');
+      return;
+    }
+
+    setIsAssigning(true);
+    const response = await api.unassignTenantFromUnit(selectedUnit.activeAssignmentNormalized.id);
+    
+    if (response?.success) {
+      toast.success('Tenant unassigned successfully');
+      setSelectedUnit(null);
+      await refreshBuildingData(selectedBuildingId ?? undefined);
+    }
+    setIsAssigning(false);
+  };
+
+  const handleCreateBuilding = async () => {
+    if (!createBuildingForm.name.trim()) {
+      toast.error('Building name is required');
+      return;
+    }
+
+    if (createBuildingForm.total_floors < 1 || createBuildingForm.units_per_floor < 1) {
+      toast.error('Floor and unit count must be at least 1');
+      return;
+    }
+
+    setIsCreatingBuilding(true);
+
+    const payload: CreateBuildingPayload = {
+      ...createBuildingForm,
+      name: createBuildingForm.name.trim(),
+      code: createBuildingForm.code?.trim() || undefined,
+      address_line: createBuildingForm.address_line?.trim() || undefined,
+      city: createBuildingForm.city?.trim() || undefined,
+      state: createBuildingForm.state?.trim() || undefined,
+      postal_code: createBuildingForm.postal_code?.trim() || undefined,
+      country: createBuildingForm.country?.trim() || undefined,
+    };
+
+    const created = await api.createAdminBuilding(payload);
+
+    if (created) {
+      toast.success('Building created successfully');
+      setIsCreateBuildingModalOpen(false);
+      setCreateBuildingForm({
+        name: '',
+        code: '',
+        address_line: '',
+        city: '',
+        state: '',
+        postal_code: '',
+        country: '',
+        total_floors: 4,
+        units_per_floor: 4,
+      });
+      setSelectedBuildingId(null);
+      setSelectedBuilding(null);
+      await refreshBuildingData();
+    }
+
+    setIsCreatingBuilding(false);
+  };
+
+  const handleDeleteBuilding = async () => {
+    if (!selectedBuilding) {
+      toast.error('Please select a building first');
+      return;
+    }
+
+    const ok = window.confirm(
+      `Delete building "${selectedBuilding.name}"? This will remove its floors and units permanently.`
+    );
+
+    if (!ok) {
+      return;
+    }
+
+    setIsDeletingBuilding(true);
+    const response = await api.deleteAdminBuilding(selectedBuilding.id);
+
+    if (response?.success) {
+      toast.success('Building deleted successfully');
+      setSelectedBuildingId(null);
+      setSelectedBuilding(null);
+      await refreshBuildingData();
+    }
+
+    setIsDeletingBuilding(false);
+  };
+
+  const openEditBuildingModal = () => {
+    if (!selectedBuilding) {
+      toast.error('Please select a building first');
+      return;
+    }
+
+    setEditBuildingForm({
+      name: selectedBuilding.name ?? '',
+      code: selectedBuilding.code ?? '',
+      address_line: selectedBuilding.address_line ?? '',
+      city: selectedBuilding.city ?? '',
+      state: selectedBuilding.state ?? '',
+      postal_code: selectedBuilding.postal_code ?? '',
+      country: selectedBuilding.country ?? '',
+    });
+    setIsEditBuildingModalOpen(true);
+  };
+
+  const handleUpdateBuilding = async () => {
+    if (!selectedBuilding) {
+      toast.error('Please select a building first');
+      return;
+    }
+
+    if (!editBuildingForm.name?.trim()) {
+      toast.error('Building name is required');
+      return;
+    }
+
+    setIsUpdatingBuilding(true);
+
+    const payload: UpdateBuildingPayload = {
+      name: editBuildingForm.name.trim(),
+      code: editBuildingForm.code?.trim() || undefined,
+      address_line: editBuildingForm.address_line?.trim() || undefined,
+      city: editBuildingForm.city?.trim() || undefined,
+      state: editBuildingForm.state?.trim() || undefined,
+      postal_code: editBuildingForm.postal_code?.trim() || undefined,
+      country: editBuildingForm.country?.trim() || undefined,
+    };
+
+    const updated = await api.updateAdminBuilding(selectedBuilding.id, payload);
+
+    if (updated) {
+      toast.success('Building info updated successfully');
+      setIsEditBuildingModalOpen(false);
+      await refreshBuildingData(selectedBuilding.id);
+    }
+
+    setIsUpdatingBuilding(false);
   };
 
   const selectedTenant = selectedUnit?.activeAssignmentNormalized?.tenant;
@@ -119,9 +330,19 @@ export default function ApartmentManagement() {
           </Row>
 
           <Card className="border-0 shadow-sm mb-4">
-            <Card.Header className="bg-white border-0 pt-4 px-4 d-flex align-items-center gap-2">
-              <BsBuilding />
-              <h5 className="mb-0">Buildings</h5>
+            <Card.Header className="bg-white border-0 pt-4 px-4 d-flex align-items-center justify-content-between gap-2">
+              <div className="d-flex align-items-center gap-2">
+                <BsBuilding />
+                <h5 className="mb-0">Buildings</h5>
+              </div>
+              <Button
+                size="sm"
+                variant="primary"
+                onClick={() => setIsCreateBuildingModalOpen(true)}
+                className="d-flex align-items-center gap-2"
+              >
+                <BsPlus /> Add Building
+              </Button>
             </Card.Header>
             <Card.Body className="px-4 pb-4">
               {isLoadingBuildings && <div className="text-muted">Loading buildings...</div>}
@@ -141,63 +362,134 @@ export default function ApartmentManagement() {
             </Card.Body>
           </Card>
 
-          <Card className="border-0 shadow-sm">
-            <Card.Header className="bg-white border-0 pt-4 px-4 d-flex align-items-center gap-2">
-              <BsGrid />
-              <h5 className="mb-0">
-                {selectedBuilding?.name ? `${selectedBuilding.name} - Floor Grid` : 'Floor Grid'}
-              </h5>
-            </Card.Header>
-            <Card.Body className="px-4 pb-4">
-              {isLoadingGrid && <div className="text-muted">Loading floor/unit layout...</div>}
-              {!isLoadingGrid && floors.length === 0 && <div className="text-muted">No floor data found for this building.</div>}
+          {selectedBuilding && (
+            <Card className="border-0 shadow-sm mb-4">
+              <Card.Header className="bg-white border-0 pt-4 px-4 d-flex align-items-center justify-content-between gap-2">
+                <div className="d-flex align-items-center gap-2">
+                  <BsBuilding />
+                  <h5 className="mb-0">Building Info</h5>
+                </div>
+                <div className="d-flex align-items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline-primary"
+                    onClick={openEditBuildingModal}
+                    disabled={isUpdatingBuilding}
+                    className="d-flex align-items-center gap-2"
+                  >
+                    <BsPencil /> Edit Info
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline-danger"
+                    onClick={handleDeleteBuilding}
+                    disabled={isDeletingBuilding}
+                    className="d-flex align-items-center gap-2"
+                  >
+                    <BsTrash /> {isDeletingBuilding ? 'Deleting...' : 'Delete Building'}
+                  </Button>
+                </div>
+              </Card.Header>
+              <Card.Body className="px-4 pb-4">
+                <Row className="g-3">
+                  <Col md={4}>
+                    <small className="text-muted d-block">Name</small>
+                    <div className="fw-semibold">{selectedBuilding.name}</div>
+                  </Col>
+                  <Col md={4}>
+                    <small className="text-muted d-block">Code</small>
+                    <div className="fw-semibold">{selectedBuilding.code || 'N/A'}</div>
+                  </Col>
+                  <Col md={4}>
+                    <small className="text-muted d-block">Total Floors</small>
+                    <div className="fw-semibold">{selectedBuilding.total_floors}</div>
+                  </Col>
+                  <Col md={4}>
+                    <small className="text-muted d-block">Total Units</small>
+                    <div className="fw-semibold">{selectedBuilding.units_count ?? 0}</div>
+                  </Col>
+                  <Col md={8}>
+                    <small className="text-muted d-block">Address</small>
+                    <div className="fw-semibold">
+                      {[
+                        selectedBuilding.address_line,
+                        selectedBuilding.city,
+                        selectedBuilding.state,
+                        selectedBuilding.postal_code,
+                        selectedBuilding.country,
+                      ]
+                        .filter(Boolean)
+                        .join(', ') || 'N/A'}
+                    </div>
+                  </Col>
+                </Row>
+              </Card.Body>
+            </Card>
+          )}
 
-              {!isLoadingGrid &&
-                floors.map((floor) => (
-                  <div key={floor.id} className="mb-4">
-                    <h6 className="mb-3">{floor.floor_label}</h6>
-                    <Row className="g-3">
-                      {(floor.units ?? []).map((unit) => {
-                        const activeAssignment = unit.active_assignment ?? unit.activeAssignment ?? null;
-                        const tenant = activeAssignment?.tenant;
-                        const phone = tenant?.tenant_profile?.phone ?? tenant?.tenantProfile?.phone;
-                        const isOccupied = unit.occupancy_status === 'occupied' && !!tenant;
+          {!selectedBuilding && !isLoadingGrid && (
+            <Card className="border-0 shadow-sm">
+              <Card.Body className="px-4 py-4 text-muted">Click a building name to view Building Info and Floor Grid.</Card.Body>
+            </Card>
+          )}
 
-                        return (
-                          <Col key={unit.id} xs={12} sm={6} lg={3}>
-                            <Card
-                              className="h-100 border-0 shadow-sm"
-                              role="button"
-                              onClick={() => void openUnit(unit)}
-                              style={{ cursor: 'pointer' }}
-                            >
-                              <Card.Body>
-                                <div className="d-flex justify-content-between align-items-center mb-2">
-                                  <h6 className="mb-0">{unit.unit_number}</h6>
-                                  <Badge bg={isOccupied ? 'success' : 'secondary'}>
-                                    {isOccupied ? 'Occupied' : 'Unassigned'}
-                                  </Badge>
-                                </div>
+          {selectedBuilding && (
+            <Card className="border-0 shadow-sm">
+              <Card.Header className="bg-white border-0 pt-4 px-4 d-flex align-items-center gap-2">
+                <BsGrid />
+                <h5 className="mb-0">{`${selectedBuilding.name} - Floor Grid`}</h5>
+              </Card.Header>
+              <Card.Body className="px-4 pb-4">
+                {isLoadingGrid && <div className="text-muted">Loading floor/unit layout...</div>}
+                {!isLoadingGrid && floors.length === 0 && <div className="text-muted">No floor data found for this building.</div>}
 
-                                {isOccupied ? (
-                                  <>
-                                    <div className="fw-semibold">{tenant?.name}</div>
-                                    <small className="text-muted d-block">{tenant?.email}</small>
-                                    <small className="text-muted d-block">{phone ?? 'No phone on profile'}</small>
-                                  </>
-                                ) : (
-                                  <small className="text-muted">No tenant assigned to this unit.</small>
-                                )}
-                              </Card.Body>
-                            </Card>
-                          </Col>
-                        );
-                      })}
-                    </Row>
-                  </div>
-                ))}
-            </Card.Body>
-          </Card>
+                {!isLoadingGrid &&
+                  floors.map((floor) => (
+                    <div key={floor.id} className="mb-4">
+                      <h6 className="mb-3">{floor.floor_label}</h6>
+                      <Row className="g-3">
+                        {(floor.units ?? []).map((unit) => {
+                          const activeAssignment = unit.active_assignment ?? unit.activeAssignment ?? null;
+                          const tenant = activeAssignment?.tenant;
+                          const phone = tenant?.tenant_profile?.phone ?? tenant?.tenantProfile?.phone;
+                          const isOccupied = unit.occupancy_status === 'occupied' && !!tenant;
+
+                          return (
+                            <Col key={unit.id} xs={12} sm={6} lg={3}>
+                              <Card
+                                className="h-100 border-0 shadow-sm"
+                                role="button"
+                                onClick={() => void openUnit(unit)}
+                                style={{ cursor: 'pointer' }}
+                              >
+                                <Card.Body>
+                                  <div className="d-flex justify-content-between align-items-center mb-2">
+                                    <h6 className="mb-0">{unit.unit_number}</h6>
+                                    <Badge bg={isOccupied ? 'success' : 'secondary'}>
+                                      {isOccupied ? 'Occupied' : 'Unassigned'}
+                                    </Badge>
+                                  </div>
+
+                                  {isOccupied ? (
+                                    <>
+                                      <div className="fw-semibold">{tenant?.name}</div>
+                                      <small className="text-muted d-block">{tenant?.email}</small>
+                                      <small className="text-muted d-block">{phone ?? 'No phone on profile'}</small>
+                                    </>
+                                  ) : (
+                                    <small className="text-muted">No tenant assigned to this unit.</small>
+                                  )}
+                                </Card.Body>
+                              </Card>
+                            </Col>
+                          );
+                        })}
+                      </Row>
+                    </div>
+                  ))}
+              </Card.Body>
+            </Card>
+          )}
         </div>
       </div>
 
@@ -206,7 +498,34 @@ export default function ApartmentManagement() {
           <Modal.Title>Unit {selectedUnit?.unit_number} Details</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          {!selectedTenant && <p className="text-muted mb-0">This unit is currently unassigned.</p>}
+          {!selectedTenant && (
+            <div>
+              <p className="text-muted mb-3">This unit is currently unassigned.</p>
+              
+              <h6 className="mb-3">Assign Tenant</h6>
+              
+              {isLoadingTenants ? (
+                <p className="text-muted mb-0">Loading available tenants...</p>
+              ) : availableTenants.length === 0 ? (
+                <p className="text-muted mb-0">No available tenants to assign.</p>
+              ) : (
+                <Form.Group className="mb-3">
+                  <Form.Label>Select Tenant</Form.Label>
+                  <Form.Select 
+                    value={selectedTenantForAssignment}
+                    onChange={(e) => setSelectedTenantForAssignment(e.target.value ? Number(e.target.value) : '')}
+                  >
+                    <option value="">-- Choose a tenant --</option>
+                    {availableTenants.map((tenant) => (
+                      <option key={tenant.id} value={tenant.id}>
+                        {tenant.name} ({tenant.email})
+                      </option>
+                    ))}
+                  </Form.Select>
+                </Form.Group>
+              )}
+            </div>
+          )}
 
           {selectedTenant && (
             <>
@@ -269,6 +588,213 @@ export default function ApartmentManagement() {
             </>
           )}
         </Modal.Body>
+        <Modal.Footer>
+          {!selectedTenant && availableTenants.length > 0 && (
+            <Button
+              variant="primary"
+              onClick={handleAssignTenant}
+              disabled={!selectedTenantForAssignment || isAssigning}
+            >
+              {isAssigning ? 'Assigning...' : 'Assign Tenant'}
+            </Button>
+          )}
+          {selectedTenant && (
+            <Button
+              variant="danger"
+              onClick={handleUnassignTenant}
+              disabled={isAssigning}
+            >
+              {isAssigning ? 'Unassigning...' : 'Unassign Tenant'}
+            </Button>
+          )}
+          <Button variant="secondary" onClick={() => setSelectedUnit(null)}>
+            Close
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      <Modal show={isCreateBuildingModalOpen} onHide={() => setIsCreateBuildingModalOpen(false)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>Add New Building</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form>
+            <Form.Group className="mb-3">
+              <Form.Label>Building Name *</Form.Label>
+              <Form.Control
+                value={createBuildingForm.name}
+                onChange={(e) => setCreateBuildingForm((prev) => ({ ...prev, name: e.target.value }))}
+                placeholder="e.g. Mayder Doa Vila"
+              />
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label>Building Code</Form.Label>
+              <Form.Control
+                value={createBuildingForm.code ?? ''}
+                onChange={(e) => setCreateBuildingForm((prev) => ({ ...prev, code: e.target.value }))}
+                placeholder="e.g. MDV-1"
+              />
+            </Form.Group>
+
+            <Row className="g-3 mb-3">
+              <Col>
+                <Form.Group>
+                  <Form.Label>Total Floors *</Form.Label>
+                  <Form.Control
+                    type="number"
+                    min={1}
+                    value={createBuildingForm.total_floors}
+                    onChange={(e) =>
+                      setCreateBuildingForm((prev) => ({
+                        ...prev,
+                        total_floors: Math.max(1, Number(e.target.value) || 1),
+                      }))
+                    }
+                  />
+                </Form.Group>
+              </Col>
+              <Col>
+                <Form.Group>
+                  <Form.Label>Units Per Floor *</Form.Label>
+                  <Form.Control
+                    type="number"
+                    min={1}
+                    max={26}
+                    value={createBuildingForm.units_per_floor}
+                    onChange={(e) =>
+                      setCreateBuildingForm((prev) => ({
+                        ...prev,
+                        units_per_floor: Math.max(1, Math.min(26, Number(e.target.value) || 1)),
+                      }))
+                    }
+                  />
+                </Form.Group>
+              </Col>
+            </Row>
+
+            <Form.Group className="mb-3">
+              <Form.Label>Address</Form.Label>
+              <Form.Control
+                value={createBuildingForm.address_line ?? ''}
+                onChange={(e) => setCreateBuildingForm((prev) => ({ ...prev, address_line: e.target.value }))}
+                placeholder="House/Road/Area"
+              />
+            </Form.Group>
+
+            <Row className="g-3">
+              <Col md={6}>
+                <Form.Group>
+                  <Form.Label>City</Form.Label>
+                  <Form.Control
+                    value={createBuildingForm.city ?? ''}
+                    onChange={(e) => setCreateBuildingForm((prev) => ({ ...prev, city: e.target.value }))}
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={6}>
+                <Form.Group>
+                  <Form.Label>Country</Form.Label>
+                  <Form.Control
+                    value={createBuildingForm.country ?? ''}
+                    onChange={(e) => setCreateBuildingForm((prev) => ({ ...prev, country: e.target.value }))}
+                  />
+                </Form.Group>
+              </Col>
+            </Row>
+          </Form>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setIsCreateBuildingModalOpen(false)} disabled={isCreatingBuilding}>
+            Cancel
+          </Button>
+          <Button variant="primary" onClick={handleCreateBuilding} disabled={isCreatingBuilding}>
+            {isCreatingBuilding ? 'Creating...' : 'Create Building'}
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      <Modal show={isEditBuildingModalOpen} onHide={() => setIsEditBuildingModalOpen(false)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>Edit Building Info</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form>
+            <Form.Group className="mb-3">
+              <Form.Label>Building Name *</Form.Label>
+              <Form.Control
+                value={editBuildingForm.name ?? ''}
+                onChange={(e) => setEditBuildingForm((prev) => ({ ...prev, name: e.target.value }))}
+              />
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label>Building Code</Form.Label>
+              <Form.Control
+                value={editBuildingForm.code ?? ''}
+                onChange={(e) => setEditBuildingForm((prev) => ({ ...prev, code: e.target.value }))}
+              />
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label>Address</Form.Label>
+              <Form.Control
+                value={editBuildingForm.address_line ?? ''}
+                onChange={(e) => setEditBuildingForm((prev) => ({ ...prev, address_line: e.target.value }))}
+              />
+            </Form.Group>
+
+            <Row className="g-3">
+              <Col md={6}>
+                <Form.Group>
+                  <Form.Label>City</Form.Label>
+                  <Form.Control
+                    value={editBuildingForm.city ?? ''}
+                    onChange={(e) => setEditBuildingForm((prev) => ({ ...prev, city: e.target.value }))}
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={6}>
+                <Form.Group>
+                  <Form.Label>State</Form.Label>
+                  <Form.Control
+                    value={editBuildingForm.state ?? ''}
+                    onChange={(e) => setEditBuildingForm((prev) => ({ ...prev, state: e.target.value }))}
+                  />
+                </Form.Group>
+              </Col>
+            </Row>
+
+            <Row className="g-3 mt-1">
+              <Col md={6}>
+                <Form.Group>
+                  <Form.Label>Postal Code</Form.Label>
+                  <Form.Control
+                    value={editBuildingForm.postal_code ?? ''}
+                    onChange={(e) => setEditBuildingForm((prev) => ({ ...prev, postal_code: e.target.value }))}
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={6}>
+                <Form.Group>
+                  <Form.Label>Country</Form.Label>
+                  <Form.Control
+                    value={editBuildingForm.country ?? ''}
+                    onChange={(e) => setEditBuildingForm((prev) => ({ ...prev, country: e.target.value }))}
+                  />
+                </Form.Group>
+              </Col>
+            </Row>
+          </Form>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setIsEditBuildingModalOpen(false)} disabled={isUpdatingBuilding}>
+            Cancel
+          </Button>
+          <Button variant="primary" onClick={handleUpdateBuilding} disabled={isUpdatingBuilding}>
+            {isUpdatingBuilding ? 'Saving...' : 'Save Changes'}
+          </Button>
+        </Modal.Footer>
       </Modal>
     </DashboardLayout>
   );

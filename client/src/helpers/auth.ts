@@ -1,4 +1,4 @@
-export type UserRole = 'admin' | 'tenant';
+export type UserRole = 'admin' | 'tenant' | 'technician';
 
 export type AuthUser = {
   id: number;
@@ -26,7 +26,7 @@ export const getStoredAuthUser = (): AuthUser | null => {
   try {
     const parsed = JSON.parse(raw) as Partial<AuthUser>;
 
-    if (!parsed || (parsed.role !== 'admin' && parsed.role !== 'tenant')) {
+    if (!parsed || (parsed.role !== 'admin' && parsed.role !== 'tenant' && parsed.role !== 'technician')) {
       clearStoredAuthUser();
       return null;
     }
@@ -43,6 +43,14 @@ export const getStoredAuthUser = (): AuthUser | null => {
   }
 };
 
-export const getDefaultPathForRole = (role: UserRole): '/admin' | '/tenant' => {
-  return role === 'admin' ? '/admin' : '/tenant';
+export const getDefaultPathForRole = (role: UserRole): '/admin' | '/tenant' | '/technician' => {
+  if (role === 'admin') {
+    return '/admin';
+  }
+
+  if (role === 'technician') {
+    return '/technician';
+  }
+
+  return '/tenant';
 };

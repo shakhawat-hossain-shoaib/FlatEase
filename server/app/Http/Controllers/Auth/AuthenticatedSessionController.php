@@ -36,7 +36,12 @@ class AuthenticatedSessionController extends Controller
 
         $user = Auth::user();
 
-        $redirectPath = $user && $user->role === 'admin' ? '/admin' : '/tenant';
+        $redirectPath = '/tenant';
+        if ($user && $user->role === 'admin') {
+            $redirectPath = '/admin';
+        } elseif ($user && $user->role === 'technician') {
+            $redirectPath = '/technician';
+        }
 
         return response()->json([
             'success' => true,
@@ -72,6 +77,12 @@ class AuthenticatedSessionController extends Controller
                 'email' => env('DEFAULT_TENANT_EMAIL', 'partha@gmail.com'),
                 'password' => env('DEFAULT_TENANT_PASSWORD', '12345678'),
                 'role' => 'tenant',
+            ],
+            [
+                'name' => env('DEFAULT_TECHNICIAN_NAME', 'Default Technician'),
+                'email' => env('DEFAULT_TECHNICIAN_EMAIL', 'tech.default@flatease.local'),
+                'password' => env('DEFAULT_TECHNICIAN_PASSWORD', 'Technician@123456'),
+                'role' => 'technician',
             ],
         ];
 

@@ -16,8 +16,22 @@ class SendComplaintActivityNotification
             $recipientIds[] = (int) $event->complaint->tenant_id;
         }
 
+        $assignedTechnicianUserIds = $event->complaint
+            ->technicians()
+            ->pluck('technicians.user_id')
+            ->map(static fn ($id) => (int) $id)
+            ->filter(static fn ($id) => $id > 0)
+            ->all();
+
+        foreach ($assignedTechnicianUserIds as $technicianUserId) {
+            if ($technicianUserId !== (int) $event->actorId) {
+                $recipientIds[] = $technicianUserId;
+            }
+        }
+
         if (
-            $event->complaint->assigned_technician_id
+            empty($assignedTechnicianUserIds)
+            && $event->complaint->assigned_technician_id
             && (int) $event->complaint->assigned_technician_id !== (int) $event->actorId
         ) {
             $recipientIds[] = (int) $event->complaint->assigned_technician_id;

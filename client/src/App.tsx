@@ -7,7 +7,7 @@ import Register from './views/Register';
 import AdminDashboard from './views/AdminDashboard';
 import TenantDashboard from './views/TenantDashboard';
 import ApartmentManagement from './views/ApartmentManagement';
-import AdminUserManagement from './views/AdminUserManagement';
+import UserManagement from './views/UserManagement';
 import ComplaintsPage from './views/ComplaintsPage';
 import LeaseDetailsPage from './views/LeaseDetailsPage';
 import DocumentsPage from './views/DocumentsPage';
@@ -107,7 +107,7 @@ function App() {
             path="/admin/users"
             element={
               <RoleGuard role="admin">
-                <AdminUserManagement />
+                <UserManagement />
               </RoleGuard>
             }
           />

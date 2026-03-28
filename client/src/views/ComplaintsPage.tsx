@@ -14,22 +14,22 @@ import {
 } from 'react-icons/bs';
 import toast from 'react-hot-toast';
 import ApiClient, {
-  AssignableUser,
   ComplaintCommentEntity,
   ComplaintEntity,
   ComplaintPriority,
   ComplaintStatus,
   ComplaintSummary,
+  TechnicianEntity,
 } from '../api';
 
-type UserRole = 'Admin' | 'Tenant';
+type UserRole = 'Admin' | 'Tenant' | 'Technician';
 
 interface ComplaintsPageProps {
   role: UserRole;
 }
 
-type StatusFormState = Record<number, { new_status: ComplaintStatus; reason: string }>;
-type AssignFormState = Record<number, { assigned_technician_id: string; sla_due_at: string; reason: string }>;
+type StatusFormState = Record<number, { new_status: ComplaintStatus }>;
+type AssignFormState = Record<number, { technician_ids: string[]; sla_due_at: string }>;
 type CommentFormState = Record<number, { comment: string; is_internal: boolean }>;
 
 function getPriorityVariant(priority: ComplaintPriority) {
@@ -51,6 +51,8 @@ function getStatusVariant(status: ComplaintStatus) {
       return 'success';
     case 'in_progress':
       return 'primary';
+    case 'assigned':
+      return 'info';
     case 'pending':
       return 'warning';
     default:
@@ -61,6 +63,10 @@ function getStatusVariant(status: ComplaintStatus) {
 function formatStatus(status: ComplaintStatus) {
   if (status === 'in_progress') {
     return 'In Progress';
+  }
+
+  if (status === 'assigned') {
+    return 'Assigned';
   }
 
   return status.charAt(0).toUpperCase() + status.slice(1);
@@ -90,7 +96,7 @@ export default function ComplaintsPage({ role }: ComplaintsPageProps) {
   const api = useMemo(() => new ApiClient(), []);
   const [complaints, setComplaints] = useState<ComplaintEntity[]>([]);
   const [summary, setSummary] = useState<ComplaintSummary | null>(null);
-  const [assignableUsers, setAssignableUsers] = useState<AssignableUser[]>([]);
+  const [assignableTechnicians, setAssignableTechnicians] = useState<TechnicianEntity[]>([]);
   const [commentsByComplaint, setCommentsByComplaint] = useState<Record<number, ComplaintCommentEntity[]>>({});
   const [statusForms, setStatusForms] = useState<StatusFormState>({});
   const [assignForms, setAssignForms] = useState<AssignFormState>({});
@@ -120,7 +126,7 @@ export default function ComplaintsPage({ role }: ComplaintsPageProps) {
     if (role === 'Admin') {
       const [summaryResponse, assignableUsersResponse] = await Promise.all([
         api.getComplaintSummary(),
-        api.getAssignableUsers(),
+        api.getAssignableTechnicians(),
       ]);
 
       if (summaryResponse) {
@@ -128,7 +134,7 @@ export default function ComplaintsPage({ role }: ComplaintsPageProps) {
       }
 
       if (assignableUsersResponse) {
-        setAssignableUsers(assignableUsersResponse);
+        setAssignableTechnicians(assignableUsersResponse);
       }
     }
 
@@ -139,16 +145,30 @@ export default function ComplaintsPage({ role }: ComplaintsPageProps) {
     void loadComplaints();
   }, [loadComplaints]);
 
+  useEffect(() => {
+    if (role !== 'Admin') {
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      void loadComplaints();
+    }, 15000);
+
+    return () => window.clearInterval(timer);
+  }, [loadComplaints, role]);
+
   const computedSummary = useMemo(() => {
     const total = complaints.length;
     const pending = complaints.filter((item) => item.status === 'pending').length;
     const in_progress = complaints.filter((item) => item.status === 'in_progress').length;
+    const assigned = complaints.filter((item) => item.status === 'assigned').length;
     const resolved = complaints.filter((item) => item.status === 'resolved').length;
     const high_priority = complaints.filter((item) => item.priority === 'high').length;
 
     return {
       total,
       pending,
+      assigned,
       in_progress,
       resolved,
       high_priority,
@@ -252,10 +272,9 @@ export default function ComplaintsPage({ role }: ComplaintsPageProps) {
   };
 
   const submitStatusUpdate = async (complaintId: number) => {
-    const form = statusForms[complaintId] ?? { new_status: 'in_progress', reason: '' };
+    const form = statusForms[complaintId] ?? { new_status: 'in_progress' };
     const updated = await api.updateComplaintStatus(complaintId, {
       new_status: form.new_status,
-      reason: form.reason,
     });
 
     if (!updated) {
@@ -268,15 +287,14 @@ export default function ComplaintsPage({ role }: ComplaintsPageProps) {
 
   const submitAssignment = async (complaintId: number) => {
     const form = assignForms[complaintId];
-    if (!form || !form.assigned_technician_id) {
-      toast.error('Please select a technician/admin.');
+    if (!form || form.technician_ids.length === 0) {
+      toast.error('Please select at least one technician.');
       return;
     }
 
     const updated = await api.assignComplaint(complaintId, {
-      assigned_technician_id: Number(form.assigned_technician_id),
+      technician_ids: form.technician_ids.map((item) => Number(item)),
       sla_due_at: form.sla_due_at || undefined,
-      reason: form.reason || undefined,
     });
 
     if (!updated) {
@@ -284,6 +302,36 @@ export default function ComplaintsPage({ role }: ComplaintsPageProps) {
     }
 
     toast.success('Complaint assignment updated.');
+    await loadComplaints();
+  };
+
+  const submitTechnicianStatusUpdate = async (complaintId: number) => {
+    const form = statusForms[complaintId] ?? { new_status: 'in_progress' };
+    if (form.new_status !== 'in_progress' && form.new_status !== 'resolved') {
+      toast.error('Technicians can only mark in-progress or resolved.');
+      return;
+    }
+
+    const updated = await api.updateTechnicianComplaintStatus(complaintId, {
+      new_status: form.new_status,
+    });
+
+    if (!updated) {
+      return;
+    }
+
+    toast.success('Complaint status updated.');
+    await loadComplaints();
+  };
+
+  const markSolvedByTenant = async (complaintId: number) => {
+    const updated = await api.markComplaintResolvedByTenant(complaintId);
+
+    if (!updated) {
+      return;
+    }
+
+    toast.success('Complaint marked as solved.');
     await loadComplaints();
   };
 
@@ -298,18 +346,49 @@ export default function ComplaintsPage({ role }: ComplaintsPageProps) {
             bgClass: 'bg-primary-subtle',
           },
           {
+            label: 'Assigned',
+            value: String(effectiveSummary.assigned ?? 0),
+            icon: BsClockHistory,
+            iconClass: 'text-info',
+            bgClass: 'bg-info-subtle',
+          },
+          {
             label: 'In Progress',
             value: String(effectiveSummary.in_progress),
-            icon: BsClockHistory,
+            icon: BsExclamationTriangle,
             iconClass: 'text-warning',
             bgClass: 'bg-warning-subtle',
           },
           {
-            label: 'Pending',
-            value: String(effectiveSummary.pending),
+            label: 'Resolved',
+            value: String(effectiveSummary.resolved),
+            icon: BsCheckCircle,
+            iconClass: 'text-success',
+            bgClass: 'bg-success-subtle',
+          },
+        ]
+      : role === 'Technician'
+      ? [
+          {
+            label: 'Assigned To Me',
+            value: String(effectiveSummary.total),
+            icon: BsExclamationCircle,
+            iconClass: 'text-primary',
+            bgClass: 'bg-primary-subtle',
+          },
+          {
+            label: 'Assigned',
+            value: String(effectiveSummary.assigned ?? 0),
+            icon: BsClockHistory,
+            iconClass: 'text-info',
+            bgClass: 'bg-info-subtle',
+          },
+          {
+            label: 'In Progress',
+            value: String(effectiveSummary.in_progress),
             icon: BsExclamationTriangle,
-            iconClass: 'text-secondary',
-            bgClass: 'bg-secondary-subtle',
+            iconClass: 'text-warning',
+            bgClass: 'bg-warning-subtle',
           },
           {
             label: 'Resolved',
@@ -350,10 +429,17 @@ export default function ComplaintsPage({ role }: ComplaintsPageProps) {
           },
         ];
 
-  const title = role === 'Admin' ? 'Complaints Management' : 'My Complaints & Maintenance';
+  const title =
+    role === 'Admin'
+      ? 'Complaints Management'
+      : role === 'Technician'
+      ? 'Assigned Complaints'
+      : 'My Complaints & Maintenance';
   const subtitle =
     role === 'Admin'
       ? 'Review tenant complaints, assign teams, and track maintenance progress.'
+      : role === 'Technician'
+      ? 'View assigned complaints and update status as work progresses.'
       : 'Track your submitted requests and follow maintenance updates.';
 
   return (
@@ -365,7 +451,7 @@ export default function ComplaintsPage({ role }: ComplaintsPageProps) {
               <h2 className="mb-1">{title}</h2>
               <p className="text-muted mb-0">{subtitle}</p>
             </div>
-            {role !== 'Admin' && (
+            {role === 'Tenant' && (
               <Button onClick={() => setShowCreateModal(true)}>
                 <BsPlus className="me-2" />
                 New Complaint
@@ -417,6 +503,7 @@ export default function ComplaintsPage({ role }: ComplaintsPageProps) {
                     >
                       <option value="all">All Statuses</option>
                       <option value="pending">Pending</option>
+                      <option value="assigned">Assigned</option>
                       <option value="in_progress">In Progress</option>
                       <option value="resolved">Resolved</option>
                     </Form.Select>
@@ -508,14 +595,27 @@ export default function ComplaintsPage({ role }: ComplaintsPageProps) {
                                 </div>
                                 <div className="text-muted small mt-1">
                                   Reported by {complaint.tenant?.name ?? 'Tenant'} · Assigned to{' '}
-                                  {complaint.assignedTechnician?.name ?? complaint.assigned_technician?.name ?? 'Unassigned'}
+                                  {complaint.technicians && complaint.technicians.length > 0
+                                    ? complaint.technicians.map((technician) => technician.name).join(', ')
+                                    : complaint.assignedTechnician?.name ?? complaint.assigned_technician?.name ?? 'Unassigned'}
                                 </div>
                                 <div className="text-muted small">SLA due by {formatDate(complaint.sla_due_at)}</div>
                               </>
                             ) : (
-                              <div className="text-muted small">
-                                Category: {complaint.category} · Submitted {formatDate(complaint.created_at)}
-                              </div>
+                              <>
+                                <div className="text-muted small">
+                                  Category: {complaint.category} · Submitted {formatDate(complaint.created_at)}
+                                </div>
+                                <div className="text-muted small mt-1">
+                                  Assigned technicians:{' '}
+                                  {complaint.technicians && complaint.technicians.length > 0
+                                    ? complaint.technicians
+                                        .map((technician) => `${technician.name}${technician.phone ? ` (${technician.phone})` : ''}`)
+                                        .join(', ')
+                                    : 'Not assigned yet'}
+                                </div>
+                                <div className="text-muted small">SLA due by {formatDate(complaint.sla_due_at)}</div>
+                              </>
                             )}
                           </div>
                         </div>
@@ -582,6 +682,18 @@ export default function ComplaintsPage({ role }: ComplaintsPageProps) {
                           </>
                         )}
 
+                        {role === 'Technician' && complaint.status !== 'resolved' && (
+                          <Button variant="outline-primary" size="sm" onClick={() => submitTechnicianStatusUpdate(complaint.id)}>
+                            Update Status
+                          </Button>
+                        )}
+
+                        {role === 'Tenant' && (complaint.status === 'assigned' || complaint.status === 'in_progress') && (
+                          <Button variant="outline-success" size="sm" onClick={() => markSolvedByTenant(complaint.id)}>
+                            Mark as Solved
+                          </Button>
+                        )}
+
                         {complaint.status === 'resolved' && (
                           <Badge bg="success" className="ms-auto">
                             <BsCheckCircle className="me-1" />
@@ -602,52 +714,36 @@ export default function ComplaintsPage({ role }: ComplaintsPageProps) {
                                   ...prev,
                                   [complaint.id]: {
                                     new_status: event.target.value as ComplaintStatus,
-                                    reason: prev[complaint.id]?.reason ?? '',
                                   },
                                 }))
                               }
                             >
                               <option value="pending">Pending</option>
+                              <option value="assigned">Assigned</option>
                               <option value="in_progress">In Progress</option>
                               <option value="resolved">Resolved</option>
                             </Form.Select>
-                            <Form.Control
-                              className="mt-2"
-                              size="sm"
-                              placeholder="Status change reason (optional)"
-                              value={statusForms[complaint.id]?.reason ?? ''}
-                              onChange={(event) =>
-                                setStatusForms((prev) => ({
-                                  ...prev,
-                                  [complaint.id]: {
-                                    new_status: prev[complaint.id]?.new_status ?? 'in_progress',
-                                    reason: event.target.value,
-                                  },
-                                }))
-                              }
-                            />
                           </div>
 
                           <div className="col-md-6">
-                            <Form.Label className="small mb-1">Assign User</Form.Label>
+                            <Form.Label className="small mb-1">Assign Technicians</Form.Label>
                             <Form.Select
                               size="sm"
-                              value={assignForms[complaint.id]?.assigned_technician_id ?? ''}
+                              multiple
+                              value={assignForms[complaint.id]?.technician_ids ?? []}
                               onChange={(event) =>
                                 setAssignForms((prev) => ({
                                   ...prev,
                                   [complaint.id]: {
-                                    assigned_technician_id: event.target.value,
+                                    technician_ids: Array.from(event.target.selectedOptions).map((option) => option.value),
                                     sla_due_at: prev[complaint.id]?.sla_due_at ?? '',
-                                    reason: prev[complaint.id]?.reason ?? '',
                                   },
                                 }))
                               }
                             >
-                              <option value="">Select admin/technician</option>
-                              {assignableUsers.map((user) => (
-                                <option key={user.id} value={user.id}>
-                                  {user.name} ({user.role})
+                              {assignableTechnicians.map((technician) => (
+                                <option key={technician.id} value={technician.id}>
+                                  {technician.name} ({technician.specialization})
                                 </option>
                               ))}
                             </Form.Select>
@@ -660,29 +756,35 @@ export default function ComplaintsPage({ role }: ComplaintsPageProps) {
                                 setAssignForms((prev) => ({
                                   ...prev,
                                   [complaint.id]: {
-                                    assigned_technician_id: prev[complaint.id]?.assigned_technician_id ?? '',
+                                    technician_ids: prev[complaint.id]?.technician_ids ?? [],
                                     sla_due_at: event.target.value,
-                                    reason: prev[complaint.id]?.reason ?? '',
                                   },
                                 }))
                               }
                             />
-                            <Form.Control
-                              className="mt-2"
+                          </div>
+                        </div>
+                      )}
+
+                      {role === 'Technician' && complaint.status !== 'resolved' && (
+                        <div className="row g-3 mt-2 border-top pt-3">
+                          <div className="col-md-6">
+                            <Form.Label className="small mb-1">Set Status</Form.Label>
+                            <Form.Select
                               size="sm"
-                              placeholder="Assignment reason (optional)"
-                              value={assignForms[complaint.id]?.reason ?? ''}
+                              value={statusForms[complaint.id]?.new_status ?? (complaint.status === 'assigned' ? 'in_progress' : 'resolved')}
                               onChange={(event) =>
-                                setAssignForms((prev) => ({
+                                setStatusForms((prev) => ({
                                   ...prev,
                                   [complaint.id]: {
-                                    assigned_technician_id: prev[complaint.id]?.assigned_technician_id ?? '',
-                                    sla_due_at: prev[complaint.id]?.sla_due_at ?? '',
-                                    reason: event.target.value,
+                                    new_status: event.target.value as ComplaintStatus,
                                   },
                                 }))
                               }
-                            />
+                            >
+                              <option value="in_progress">In Progress</option>
+                              <option value="resolved">Resolved</option>
+                            </Form.Select>
                           </div>
                         </div>
                       )}
