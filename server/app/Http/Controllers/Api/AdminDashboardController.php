@@ -112,8 +112,8 @@ class AdminDashboardController extends Controller
                 ];
             });
 
-        return $paymentActivity
-            ->merge($complaintActivity)
+        return collect($paymentActivity->all())
+            ->merge($complaintActivity->all())
             ->filter(function (array $item) {
                 return !empty($item['created_at']);
             })
