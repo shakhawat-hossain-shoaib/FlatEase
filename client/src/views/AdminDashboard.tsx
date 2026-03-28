@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Button, Card, Col, Form, Row, Spinner, Table } from 'react-bootstrap';
-import ApiClient, { AdminDashboardSummary } from '../api';
+import ApiClient, { AdminDashboardSummary, AppNotificationEntity } from '../api';
 import { DashboardLayout } from './DashboardLayout';
 import toast from 'react-hot-toast';
 
@@ -39,12 +39,17 @@ export default function AdminDashboard() {
   const [notificationTitle, setNotificationTitle] = useState('');
   const [notificationMessage, setNotificationMessage] = useState('');
   const [isSendingNotification, setIsSendingNotification] = useState(false);
+  const [myNotifications, setMyNotifications] = useState<AppNotificationEntity[]>([]);
 
   useEffect(() => {
     const loadSummary = async () => {
       setIsLoading(true);
-      const response = await api.getAdminDashboardSummary();
-      setSummary(response ?? null);
+      const [summaryResponse, notificationResponse] = await Promise.all([
+        api.getAdminDashboardSummary(),
+        api.getNotifications(8),
+      ]);
+      setSummary(summaryResponse ?? null);
+      setMyNotifications(notificationResponse?.data ?? []);
       setIsLoading(false);
     };
 
@@ -68,6 +73,9 @@ export default function AdminDashboard() {
       toast.success(response.message || 'Notification sent successfully.');
       setNotificationTitle('');
       setNotificationMessage('');
+
+      const notificationResponse = await api.getNotifications(8);
+      setMyNotifications(notificationResponse?.data ?? []);
     }
 
     setIsSendingNotification(false);
@@ -209,6 +217,28 @@ export default function AdminDashboard() {
                       <Button onClick={handleCreateNotification} disabled={isSendingNotification}>
                         {isSendingNotification ? 'Sending...' : 'Send To Tenants'}
                       </Button>
+                    </Card.Body>
+                  </Card>
+                </Col>
+                <Col md={12} lg={4}>
+                  <Card className="border-0 shadow-sm h-100">
+                    <Card.Body>
+                      <h6 className="mb-3">My Notifications</h6>
+                      <ul className="list-unstyled mb-0">
+                        {myNotifications.map((item) => {
+                          const title = item.data?.title || item.data?.type || 'Notification';
+                          const message = item.data?.message || '';
+
+                          return (
+                            <li key={item.id} className="mb-2">
+                              <strong>{title}</strong>
+                              <div className="small text-muted">{message}</div>
+                              <div className="small text-muted">{formatDate(item.created_at)}</div>
+                            </li>
+                          );
+                        })}
+                        {myNotifications.length === 0 && <li className="text-muted">No notifications yet.</li>}
+                      </ul>
                     </Card.Body>
                   </Card>
                 </Col>
