@@ -299,6 +299,31 @@ export type CreateTenantWithAssignmentResponse = {
   };
 };
 
+export type AdminCreatedUserCredential = {
+  id: number;
+  name: string;
+  email: string;
+  role: 'admin' | 'tenant' | 'technician';
+  password: string | null;
+  created_at?: string;
+  credential_created_at?: string;
+  created_by_name?: string | null;
+  debug_has_credential_id?: boolean;
+  debug_has_ciphertext?: boolean;
+};
+
+export type AdminResetCredentialResponse = {
+  success: boolean;
+  message: string;
+  user: {
+    id: number;
+    name: string;
+    email: string;
+    role: 'admin' | 'tenant' | 'technician';
+    password: string;
+  };
+};
+
 export type TenantPaymentCharge = {
   key: string;
   label: string;
@@ -374,6 +399,7 @@ export type TenantMonthlyPaymentSummary = {
   billing_period_end: string;
   due_date: string;
   next_payment?: {
+    id?: number | null;
     date: string;
     amount: number;
     status?: 'pending' | 'partially_paid' | 'paid' | 'overdue';
@@ -393,6 +419,13 @@ export type TenantMonthlyPaymentSummary = {
   notice_count?: number;
   unread_notice_count?: number;
   notices?: TenantNotice[];
+};
+
+export type TenantSslCommerzInitResponse = {
+  success: boolean;
+  payment_id: number;
+  transaction_id: string;
+  gateway_url: string;
 };
 
 export type AdminDashboardStats = {
@@ -984,6 +1017,27 @@ class ApiClient {
     }
   }
 
+  async getAdminCreatedUserCredentials(): Promise<AdminCreatedUserCredential[] | undefined> {
+    try {
+      const response = await this.client.get('/api/admin/users/created-credentials');
+      return response.data;
+    } catch (error) {
+      this.handleError(error);
+      return undefined;
+    }
+  }
+
+  async resetAdminUserCredential(userId: number): Promise<AdminResetCredentialResponse | undefined> {
+    try {
+      const headers = await this.csrfHeaders();
+      const response = await this.client.post(`/api/admin/users/${userId}/reset-credential`, {}, { headers });
+      return response.data;
+    } catch (error) {
+      this.handleError(error);
+      return undefined;
+    }
+  }
+
   async getVacantUnits(buildingId: number): Promise<UnitEntity[] | undefined> {
     try {
       const response = await this.client.get(`/api/admin/buildings/${buildingId}/vacant-units`);
@@ -1047,6 +1101,23 @@ class ApiClient {
   async getTenantCurrentPaymentSummary(): Promise<TenantMonthlyPaymentSummary | undefined> {
     try {
       const response = await this.client.get('/api/tenant/payments/current-summary');
+      return response.data;
+    } catch (error) {
+      this.handleError(error);
+      return undefined;
+    }
+  }
+
+  async initiateTenantSslCommerzPayment(paymentId: number, customAmount?: number): Promise<TenantSslCommerzInitResponse | undefined> {
+    try {
+      const headers = await this.csrfHeaders();
+      const payload: { payment_id: number; custom_amount?: number } = {
+        payment_id: paymentId,
+      };
+      if (customAmount !== undefined && customAmount > 0) {
+        payload.custom_amount = customAmount;
+      }
+      const response = await this.client.post('/api/tenant/payments/sslcommerz/initiate', payload, { headers });
       return response.data;
     } catch (error) {
       this.handleError(error);
@@ -1155,7 +1226,7 @@ class ApiClient {
       if (status === 419) {
         toastMessage = 'CSRF token mismatch. Please refresh and sign in again.';
       } else {
-        toastMessage = firstValidationMessage || data.message || `Request failed with status code ${status}`;
+        toastMessage = firstValidationMessage || data.message || data.error || `Request failed with status code ${status}`;
       }
       console.error(`API Error: ${status} - ${toastMessage}`);
     } else if (error.request) {

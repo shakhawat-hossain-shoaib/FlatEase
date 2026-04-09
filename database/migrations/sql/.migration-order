@@ -29,3 +29,4 @@ add_encryption_columns_to_tenant_documents_table.sql
 create_document_access_audits_table.sql
 create_otp_challenges_table.sql
 add_phone_and_account_status_to_users_table.sql
+create_admin_user_credentials_table.sql

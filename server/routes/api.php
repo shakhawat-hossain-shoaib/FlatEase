@@ -25,13 +25,20 @@ Route::middleware(['auth:sanctum'])->get('/user', function (Request $request) {
     return $request->user();
 });
 
+Route::match(['get', 'post'], '/sslcommerz/success', [TenantPaymentController::class, 'sslCommerzSuccess']);
+Route::match(['get', 'post'], '/sslcommerz/fail', [TenantPaymentController::class, 'sslCommerzFail']);
+Route::match(['get', 'post'], '/sslcommerz/cancel', [TenantPaymentController::class, 'sslCommerzCancel']);
+Route::post('/sslcommerz/ipn', [TenantPaymentController::class, 'sslCommerzIpn']);
+
 Route::middleware(['auth:sanctum', 'check.admin'])->group(function () {
     Route::get('/admin/dashboard/summary', [AdminDashboardController::class, 'summary']);
     Route::post('/admin/notifications/broadcast', [NotificationController::class, 'adminBroadcast']);
     Route::get('/admin/tenants/payment-options', [TenantPaymentController::class, 'adminTenantOptions']);
     Route::get('/admin/users/assignable', [UserManagementController::class, 'assignable']);
     Route::get('/admin/users/assignable-tenants', [UserManagementController::class, 'assignableTenants']);
+    Route::get('/admin/users/created-credentials', [UserManagementController::class, 'createdCredentials']);
     Route::post('/admin/users', [UserManagementController::class, 'store']);
+    Route::post('/admin/users/{userId}/reset-credential', [UserManagementController::class, 'resetCredential']);
     Route::post('/admin/tenants/create-with-assignment', [UserManagementController::class, 'createTenantWithAssignment']);
 
     Route::get('/admin/buildings', [AdminBuildingController::class, 'index']);
@@ -79,6 +86,9 @@ Route::middleware(['auth:sanctum', 'check.technician'])->group(function () {
 
 Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/tenant/payments/current-summary', [TenantPaymentController::class, 'currentSummary']);
+    Route::post('/tenant/payments/sslcommerz/initiate', [TenantPaymentController::class, 'initiateSslCommerz']);
+    Route::post('/tenant/payments/{paymentId}/partial', [TenantPaymentController::class, 'recordPartialPayment']);
+    Route::get('/tenant/payments/{paymentId}/partial-history', [TenantPaymentController::class, 'getPartialPayments']);
     Route::get('/tenant/documents/checklist', [TenantDocumentController::class, 'checklist']);
     Route::get('/tenant/documents', [TenantDocumentController::class, 'index']);
     Route::post('/tenant/documents', [TenantDocumentController::class, 'store']);

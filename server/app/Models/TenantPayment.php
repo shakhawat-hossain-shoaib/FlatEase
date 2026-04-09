@@ -50,4 +50,9 @@ class TenantPayment extends Model
     {
         return $this->belongsTo(User::class, 'recorded_by');
     }
+
+    public function partialPayments()
+    {
+        return $this->hasMany(PartialPayment::class, 'tenant_payment_id');
+    }
 }
