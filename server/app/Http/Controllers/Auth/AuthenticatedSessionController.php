@@ -36,6 +36,20 @@ class AuthenticatedSessionController extends Controller
 
         $user = Auth::user();
 
+        if ($user && in_array($user->account_status, ['pending_verification', 'locked'], true)) {
+            Auth::guard('web')->logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            return response()->json([
+                'success' => false,
+                'message' => $user->account_status === 'locked'
+                    ? 'Your account is temporarily locked. Please complete OTP verification or try again later.'
+                    : 'Your account needs OTP verification before login.',
+                'status' => $user->account_status === 'locked' ? 'locked' : 'verification_required',
+            ], $user->account_status === 'locked' ? 423 : 403);
+        }
+
         $redirectPath = '/tenant';
         if ($user && $user->role === 'admin') {
             $redirectPath = '/admin';
@@ -97,6 +111,8 @@ class AuthenticatedSessionController extends Controller
                     'name' => $account['name'],
                     'password' => Hash::make($account['password']),
                     'role' => $account['role'],
+                    'account_status' => 'active',
+                    'email_verified_at' => now(),
                 ]
             );
         }

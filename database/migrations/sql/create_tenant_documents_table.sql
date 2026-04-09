@@ -1,0 +1,22 @@
+CREATE TABLE IF NOT EXISTS tenant_documents (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  tenant_user_id BIGINT UNSIGNED NOT NULL,
+  document_type_id BIGINT UNSIGNED NOT NULL,
+  storage_disk VARCHAR(40) NOT NULL DEFAULT 'local',
+  storage_path VARCHAR(500) NOT NULL,
+  original_filename VARCHAR(255) NOT NULL,
+  mime_type VARCHAR(120) NOT NULL,
+  file_size_bytes BIGINT UNSIGNED NOT NULL,
+  checksum_sha256 VARCHAR(64) NULL,
+  status ENUM('uploaded', 'under_review', 'approved', 'rejected', 'expired') NOT NULL DEFAULT 'uploaded',
+  verified_by BIGINT UNSIGNED NULL,
+  verified_at TIMESTAMP NULL,
+  rejection_reason VARCHAR(500) NULL,
+  created_at TIMESTAMP NULL,
+  updated_at TIMESTAMP NULL,
+  KEY tenant_documents_tenant_status_idx (tenant_user_id, status),
+  KEY tenant_documents_type_status_idx (document_type_id, status),
+  CONSTRAINT tenant_documents_tenant_fk FOREIGN KEY (tenant_user_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT tenant_documents_type_fk FOREIGN KEY (document_type_id) REFERENCES document_types(id) ON DELETE CASCADE,
+  CONSTRAINT tenant_documents_verified_by_fk FOREIGN KEY (verified_by) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

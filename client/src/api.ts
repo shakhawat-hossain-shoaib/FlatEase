@@ -14,6 +14,25 @@ export type LoginResponse = {
   redirectPath: '/admin' | '/tenant' | '/technician';
 };
 
+export type OtpChallengePurpose = 'registration_verification' | 'password_reset';
+
+export type OtpChallengeResponse = {
+  success: boolean;
+  status: string;
+  message: string;
+  challenge_token?: string;
+  purpose?: OtpChallengePurpose;
+  channel?: 'email' | 'sms';
+  masked_destination?: string;
+  expires_in_seconds?: number;
+  resend_available_in_seconds?: number;
+  attempts_remaining?: number;
+  verification_required?: boolean;
+  locked_until?: string;
+  retry_after_seconds?: number;
+  user?: UserEntity;
+};
+
 export type BasicApiResponse = {
   success: boolean;
   message: string;
@@ -514,13 +533,22 @@ class ApiClient {
     }
   }
 
-  async register(name: string, email: string, password: string, password_confirmation: string) {
+  async register(
+    name: string,
+    email: string,
+    password: string,
+    password_confirmation: string,
+    phone?: string,
+    preferred_contact_method: 'email' | 'sms' = 'email'
+  ): Promise<OtpChallengeResponse | undefined> {
     try {
       const headers = await this.csrfHeaders();
 
       const response = await this.client.post('/register', {
         name,
         email,
+        phone,
+        preferred_contact_method,
         password,
         password_confirmation,
       }, { headers });
@@ -540,6 +568,90 @@ class ApiClient {
         email,
         password,
       }, { headers });
+
+      return response.data;
+    } catch (error) {
+      this.handleError(error);
+      return undefined;
+    }
+  }
+
+  async requestPasswordResetOtp(
+    identifier: string,
+    preferred_contact_method: 'email' | 'sms' = 'email'
+  ): Promise<OtpChallengeResponse | undefined> {
+    try {
+      const headers = await this.csrfHeaders();
+
+      const response = await this.client.post('/forgot-password', {
+        identifier,
+        preferred_contact_method,
+      }, { headers });
+
+      return response.data;
+    } catch (error) {
+      this.handleError(error);
+      return undefined;
+    }
+  }
+
+  async verifyOtp(challenge_token: string, otp: string): Promise<OtpChallengeResponse | undefined> {
+    try {
+      const headers = await this.csrfHeaders();
+
+      const response = await this.client.post('/verify-otp', {
+        challenge_token,
+        otp,
+      }, { headers });
+
+      return response.data;
+    } catch (error) {
+      this.handleError(error);
+      return undefined;
+    }
+  }
+
+  async resendOtp(challenge_token: string): Promise<OtpChallengeResponse | undefined> {
+    try {
+      const headers = await this.csrfHeaders();
+
+      const response = await this.client.post('/resend-otp', {
+        challenge_token,
+      }, { headers });
+
+      return response.data;
+    } catch (error) {
+      this.handleError(error);
+      return undefined;
+    }
+  }
+
+  async getOtpStatus(challenge_token: string): Promise<OtpChallengeResponse | undefined> {
+    try {
+      const headers = await this.csrfHeaders();
+
+      const response = await this.client.get('/otp-status', {
+        params: { challenge_token },
+        headers,
+      });
+
+      return response.data;
+    } catch (error) {
+      this.handleError(error);
+      return undefined;
+    }
+  }
+
+  async resetPasswordWithOtp(payload: {
+    challenge_token: string;
+    otp: string;
+    password: string;
+    password_confirmation: string;
+  }): Promise<OtpChallengeResponse | undefined> {
+    try {
+      const headers = await this.csrfHeaders();
+
+      const response = await this.client.post('/reset-password', payload, { headers });
 
       return response.data;
     } catch (error) {

@@ -3,6 +3,7 @@
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\EmailVerificationNotificationController;
 use App\Http\Controllers\Auth\NewPasswordController;
+use App\Http\Controllers\Auth\OtpChallengeController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\Auth\VerifyEmailController;
@@ -11,6 +12,18 @@ use Illuminate\Support\Facades\Route;
 Route::post('/register', [RegisteredUserController::class, 'store'])
                 ->middleware('guest')
                 ->name('register');
+
+Route::post('/verify-otp', [OtpChallengeController::class, 'verify'])
+                ->middleware('guest')
+                ->name('otp.verify');
+
+Route::post('/resend-otp', [OtpChallengeController::class, 'resend'])
+                ->middleware('guest')
+                ->name('otp.resend');
+
+Route::get('/otp-status', [OtpChallengeController::class, 'status'])
+                ->middleware('guest')
+                ->name('otp.status');
 
 Route::post('/login', [AuthenticatedSessionController::class, 'store'])
                 ->middleware('guest')

@@ -4,7 +4,7 @@ This document defines the team standard for local development.
 
 ## Goal
 
-Provide one reproducible local setup for every developer using Docker, MySQL, Laravel migrations, and idempotent seeders.
+Provide one reproducible local setup for every developer using Docker, MySQL, SQL-first migrations, and SQL seed files.
 
 ## Team Workflow
 
@@ -12,7 +12,7 @@ Provide one reproducible local setup for every developer using Docker, MySQL, La
 2. Switch to the active team branch.
 3. Copy environment template.
 4. Start containers.
-5. Run migrations and seeders.
+5. Run SQL migrations and SQL seeds.
 6. Start coding.
 
 ## Prerequisites
@@ -29,7 +29,8 @@ git clone --branch Dockerizing <your-repository-url>
 cd FlatEase
 cp .env.example .env
 docker compose up -d --build
-docker compose exec -T backend php artisan migrate --seed --force --no-interaction
+docker compose exec -T backend bash /var/www/database/migrations/run_sql_migrations.sh
+docker compose exec -T backend bash /var/www/database/seeds/run_sql_seeds.sh
 ```
 
 ### Windows (PowerShell)
@@ -39,7 +40,8 @@ git clone --branch Dockerizing <your-repository-url>
 cd FlatEase
 Copy-Item .env.example .env
 docker compose up -d --build
-docker compose exec -T backend php artisan migrate --seed --force --no-interaction
+docker compose exec -T backend bash /var/www/database/migrations/run_sql_migrations.sh
+docker compose exec -T backend bash /var/www/database/seeds/run_sql_seeds.sh
 ```
 
 If you already cloned before this setup was introduced:
@@ -71,10 +73,10 @@ powershell -ExecutionPolicy Bypass -File .\docker-init.ps1
 
 ## Database-First Rules
 
-1. All schema changes must be made through Laravel migrations under `server/database/migrations`.
-2. Do not rely on ad hoc SQL bootstrap files for active schema changes.
-3. Keep seeders idempotent using `updateOrCreate` or `updateOrInsert`.
-4. After pulling new code, rerun migrations.
+1. All schema changes must be made through SQL files under `database/migrations/sql`.
+2. One SQL file must exist per migration timestamp.
+3. Seeds must be SQL files under `database/seeds/sql`.
+4. After pulling new code, rerun SQL migration runner.
 
 ## Daily Commands
 
@@ -85,10 +87,10 @@ docker compose up -d
 
 # Pull latest and apply schema changes
 git pull origin Dockerizing
-docker compose exec -T backend php artisan migrate --force
+docker compose exec -T backend bash /var/www/database/migrations/run_sql_migrations.sh
 
-# Rerun seed safely (idempotent)
-docker compose exec -T backend php artisan db:seed --force --no-interaction
+# Rerun seed safely
+docker compose exec -T backend bash /var/www/database/seeds/run_sql_seeds.sh
 
 # Logs
 docker compose logs -f
@@ -108,7 +110,8 @@ git pull origin Dockerizing
 docker compose down -v --remove-orphans
 docker compose build --no-cache --pull
 docker compose up -d
-docker compose exec -T backend php artisan migrate --seed --force --no-interaction
+docker compose exec -T backend bash /var/www/database/migrations/run_sql_migrations.sh
+docker compose exec -T backend bash /var/www/database/seeds/run_sql_seeds.sh
 ```
 
 Windows (PowerShell):
@@ -130,7 +133,8 @@ Use this only when you intentionally want a clean local DB:
 ```bash
 docker compose down -v
 docker compose up -d --build
-docker compose exec -T backend php artisan migrate --seed --force --no-interaction
+docker compose exec -T backend bash /var/www/database/migrations/run_sql_migrations.sh
+docker compose exec -T backend bash /var/www/database/seeds/run_sql_seeds.sh
 ```
 
 ## Seeded Default Accounts
@@ -150,7 +154,7 @@ If backend cannot connect to MySQL:
 
 1. Verify containers are healthy: `docker compose ps`
 2. Verify DB env in `.env` (`DB_HOST=mysql`, `DB_DATABASE=flatease_db`)
-3. Retry migrations: `docker compose exec -T backend php artisan migrate --force`
+3. Retry SQL migrations: `docker compose exec -T backend bash /var/www/database/migrations/run_sql_migrations.sh`
 
 If you changed env values:
 

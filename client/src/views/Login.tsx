@@ -95,6 +95,11 @@ export default function Login() {
             <div className="text-center text-muted mt-3" style={{ fontSize: '0.85rem' }}>
               Use your registered email and password
             </div>
+            <div className="mt-3 text-center">
+              <small>
+                <Link to="/forgot-password">Forgot password?</Link>
+              </small>
+            </div>
           </Form>
           <div className="mt-3 text-center">
             <small>

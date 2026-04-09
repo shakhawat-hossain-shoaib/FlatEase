@@ -54,8 +54,11 @@ Write-Host "Waiting for services to be ready..."
 Start-Sleep -Seconds 5
 
 Write-Host ""
-Write-Host "Running database migrations..."
-docker compose --env-file .env exec -T backend php artisan migrate --seed --force --no-interaction
+Write-Host "Running SQL database migrations..."
+docker compose --env-file .env exec -T backend bash /var/www/database/migrations/run_sql_migrations.sh
+
+Write-Host "Running SQL seed data..."
+docker compose --env-file .env exec -T backend bash /var/www/database/seeds/run_sql_seeds.sh
 
 Write-Host ""
 Write-Host "Database setup complete."
@@ -70,5 +73,5 @@ Write-Host ""
 Write-Host "Next steps:"
 Write-Host "  - View logs: docker compose logs -f"
 Write-Host "  - Stop services: docker compose down"
-Write-Host "  - Pull updates: git pull origin $targetBranch and then docker compose --env-file .env exec -T backend php artisan migrate --force"
+Write-Host "  - Pull updates: git pull origin $targetBranch and then docker compose --env-file .env exec -T backend bash /var/www/database/migrations/run_sql_migrations.sh"
 Write-Host "  - See DOCKER.md for detailed documentation"
