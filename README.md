@@ -42,6 +42,13 @@ This project is built as an academic and portfolio-ready application using **Lar
 - RESTful API architecture
 - Laravel Sanctum (JWT-based authentication)
 - MySQL database
+- SSLCommerz gateway wiring lives under `server/config/sslcommerz.php`, `server/routes/web.php`, and `server/.env.example`
+
+### SSLCommerz Setup
+- Set `SSLCZ_STORE_ID`, `SSLCZ_STORE_PASSWORD`, and `SSLCZ_TESTMODE` in `server/.env`
+- Keep the callback routes in `server/routes/web.php` so `/success`, `/fail`, `/cancel`, and `/ipn` are not swallowed by the SPA catch-all route
+- If you use local sandbox callbacks, keep `IS_LOCALHOST=true`
+- The upstream `sslcommerz/SSLCommerz-Laravel` repository is an example source bundle, not a Composer package
 
 ### Frontend
 - React.js
