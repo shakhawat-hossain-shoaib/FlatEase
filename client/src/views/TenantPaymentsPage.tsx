@@ -306,7 +306,7 @@ export default function TenantPaymentsPage() {
                         onClick={handleOpenPaymentModal}
                         disabled={isPaying || summary.total_due <= 0 || summary.status === 'paid'}
                       >
-                        {isPaying ? 'Redirecting to SSLCommerz...' : 'Pay Now'}
+                        {isPaying ? 'Redirecting to SSLCommerz...' : 'Pay in SSLCommerz'}
                       </Button>
                     </Card.Body>
                   </Card>
