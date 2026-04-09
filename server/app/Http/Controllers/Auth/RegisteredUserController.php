@@ -3,17 +3,20 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
-use App\Models\User;
-use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rules;
-use Throwable;
+use App\Services\Auth\OtpChallengeService;
 
 class RegisteredUserController extends Controller
 {
+    private OtpChallengeService $otpChallenges;
+
+    public function __construct(OtpChallengeService $otpChallenges)
+    {
+        $this->otpChallenges = $otpChallenges;
+    }
+
     /**
      * Handle an incoming registration request.
      *
@@ -27,6 +30,8 @@ class RegisteredUserController extends Controller
         $validator = Validator::make($request->all(), [
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
+            'phone' => ['nullable', 'string', 'max:20', 'unique:users,phone', 'required_if:preferred_contact_method,sms'],
+            'preferred_contact_method' => ['required', 'in:email,sms'],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
             // Public registration must not accept role elevation input.
             'role' => ['prohibited'],
@@ -42,34 +47,16 @@ class RegisteredUserController extends Controller
 
         $validated = $validator->validated();
 
-        $user = User::create([
+        $response = $this->otpChallenges->issueRegistrationChallenge([
             'name' => $validated['name'],
             'email' => $validated['email'],
-            'password' => Hash::make($validated['password']),
-            'role' => 'tenant',
+            'phone' => $validated['phone'] ?? null,
+            'preferred_contact_method' => $validated['preferred_contact_method'],
+            'password' => $validated['password'],
         ]);
 
-        try {
-            event(new Registered($user));
-        } catch (Throwable $exception) {
-            // User account is already created; do not fail registration because
-            // optional post-registration notifications are unavailable.
-            Log::warning('Registered event dispatch failed after user creation.', [
-                'user_id' => $user->id,
-                'email' => $user->email,
-                'error' => $exception->getMessage(),
-            ]);
-        }
-
         return response()->json([
-            'success' => true,
-            'message' => 'User registered successfully.',
-            'user' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-                'role' => $user->role,
-            ],
+            ...$response,
         ], 201);
     }
 }

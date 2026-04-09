@@ -3,16 +3,19 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Password;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rules;
-use Illuminate\Validation\ValidationException;
+use App\Services\Auth\OtpChallengeService;
 
 class NewPasswordController extends Controller
 {
+    private OtpChallengeService $otpChallenges;
+
+    public function __construct(OtpChallengeService $otpChallenges)
+    {
+        $this->otpChallenges = $otpChallenges;
+    }
+
     /**
      * Handle an incoming new password request.
      *
@@ -24,32 +27,17 @@ class NewPasswordController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'token' => ['required'],
-            'email' => ['required', 'email'],
+            'challenge_token' => ['required', 'string'],
+            'otp' => ['required', 'string', 'size:6'],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
 
-        // Here we will attempt to reset the user's password. If it is successful we
-        // will update the password on an actual user model and persist it to the
-        // database. Otherwise we will parse the error and return the response.
-        $status = Password::reset(
-            $request->only('email', 'password', 'password_confirmation', 'token'),
-            function ($user) use ($request) {
-                $user->forceFill([
-                    'password' => Hash::make($request->password),
-                    'remember_token' => Str::random(60),
-                ])->save();
-
-                event(new PasswordReset($user));
-            }
+        $response = $this->otpChallenges->completePasswordReset(
+            $request->string('challenge_token')->toString(),
+            $request->string('otp')->toString(),
+            $request->string('password')->toString()
         );
 
-        if ($status != Password::PASSWORD_RESET) {
-            throw ValidationException::withMessages([
-                'email' => [__($status)],
-            ]);
-        }
-
-        return response()->json(['status' => __($status)]);
+        return response()->json($response, ($response['success'] ?? false) ? 200 : 422);
     }
 }

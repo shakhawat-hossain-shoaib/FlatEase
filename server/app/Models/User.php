@@ -19,8 +19,12 @@ class User extends Authenticatable implements MustVerifyEmail
     protected $fillable = [
         'name',
         'email',
+        'phone',
+        'preferred_contact_method',
         'password',
         'role',
+        'account_status',
+        'otp_locked_until',
     ];
 
     /**
@@ -40,6 +44,7 @@ class User extends Authenticatable implements MustVerifyEmail
      */
     protected $casts = [
         'email_verified_at' => 'datetime',
+        'otp_locked_until' => 'datetime',
     ];
 
     public function technicianProfile()

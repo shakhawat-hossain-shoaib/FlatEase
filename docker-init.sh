@@ -59,8 +59,11 @@ echo "Waiting for services to be ready..."
 sleep 5
 
 echo ""
-echo "Running database migrations..."
-docker compose --env-file .env exec -T backend php artisan migrate --seed --force --no-interaction
+echo "Running SQL database migrations..."
+docker compose --env-file .env exec -T backend bash /var/www/database/migrations/run_sql_migrations.sh
+
+echo "Running SQL seed data..."
+docker compose --env-file .env exec -T backend bash /var/www/database/seeds/run_sql_seeds.sh
 
 echo ""
 echo "Database setup complete."
@@ -75,5 +78,5 @@ echo ""
 echo "Next steps:"
 echo "  - View logs: docker compose logs -f"
 echo "  - Stop services: docker compose down"
-echo "  - Pull updates: git pull origin ${TARGET_BRANCH} && docker compose --env-file .env exec -T backend php artisan migrate --force"
+echo "  - Pull updates: git pull origin ${TARGET_BRANCH} && docker compose --env-file .env exec -T backend bash /var/www/database/migrations/run_sql_migrations.sh"
 echo "  - See DOCKER.md for detailed documentation"

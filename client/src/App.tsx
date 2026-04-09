@@ -4,6 +4,8 @@ import BaseLayout from './views/BaseLayout';
 import Landing from './views/Landing';
 import Login from './views/Login';
 import Register from './views/Register';
+import ForgotPassword from './views/ForgotPassword';
+import OtpVerification from './views/OtpVerification';
 import AdminDashboard from './views/AdminDashboard';
 import TenantDashboard from './views/TenantDashboard';
 import ApartmentManagement from './views/ApartmentManagement';
@@ -75,6 +77,22 @@ function App() {
           element={
             <PublicOnlyRoute>
               <Register />
+            </PublicOnlyRoute>
+          }
+        />
+        <Route
+          path="/forgot-password"
+          element={
+            <PublicOnlyRoute>
+              <ForgotPassword />
+            </PublicOnlyRoute>
+          }
+        />
+        <Route
+          path="/verify-otp"
+          element={
+            <PublicOnlyRoute>
+              <OtpVerification />
             </PublicOnlyRoute>
           }
         />
