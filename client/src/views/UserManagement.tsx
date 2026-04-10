@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Button, Card, Col, Form, Modal, Row, Spinner, Table } from 'react-bootstrap';
-import { BsClipboard, BsEye, BsEyeSlash, BsPlus } from 'react-icons/bs';
+import { BsClipboard, BsEye, BsEyeSlash, BsPeople, BsPlus } from 'react-icons/bs';
 import ApiClient, { AdminCreatedUserCredential, BuildingEntity, CreateTenantWithAssignmentResponse, UnitEntity } from '../api';
 import { DashboardLayout } from './DashboardLayout';
+import { AdminEmptyState } from '../components/admin/AdminEmptyState';
+import { AdminPageHeader } from '../components/admin/AdminPageHeader';
+import { AdminSectionCard } from '../components/admin/AdminSectionCard';
 import toast from 'react-hot-toast';
 
 type FormData = {
@@ -191,29 +194,30 @@ export default function UserManagement() {
 
   return (
     <DashboardLayout role="Admin">
-      <div style={{ background: '#e8f0ff', minHeight: '100vh' }}>
-        <div className="container-fluid py-4">
-          <div className="d-flex align-items-center justify-content-between mb-4">
-            <div>
-              <h2 className="mb-1">User Management</h2>
-              <p className="text-muted mb-0">Create and manage tenant accounts</p>
-            </div>
-            <Button
+      <div className="admin-page-bg">
+        <div className="container-fluid admin-page-container">
+          <AdminPageHeader
+            title="User Management"
+            subtitle="Create and manage tenant accounts."
+            action={<Button
               variant="primary"
               onClick={() => setShowCreateModal(true)}
               className="d-flex align-items-center gap-2"
             >
               <BsPlus size={20} /> Create Tenant
-            </Button>
-          </div>
+            </Button>}
+          />
 
-          <Card className="border-0 shadow-sm">
-            <Card.Body>
-              <div className="d-flex align-items-center justify-content-between mb-3">
-                <h5 className="mb-0">Tenant Account Credentials</h5>
-                <Button variant="outline-primary" size="sm" onClick={() => void loadCreatedUsers()} disabled={isLoadingCreatedUsers}>
+          <AdminSectionCard
+            title="Tenant Account Credentials"
+            actions={<Button variant="outline-primary" size="sm" onClick={() => void loadCreatedUsers()} disabled={isLoadingCreatedUsers}>
                   {isLoadingCreatedUsers ? 'Refreshing...' : 'Refresh'}
-                </Button>
+                </Button>}
+          >
+              <div className="d-flex align-items-center justify-content-between mb-3">
+                <div className="small text-muted d-flex align-items-center gap-2">
+                  <BsPeople /> Credentials and one-time passwords for created tenants
+                </div>
               </div>
 
               {isLoadingCreatedUsers ? (
@@ -222,9 +226,13 @@ export default function UserManagement() {
                   Loading credentials...
                 </div>
               ) : createdUsers.length === 0 ? (
-                <p className="text-muted mb-0">No created user credentials found yet.</p>
+                <AdminEmptyState
+                  icon={BsPeople}
+                  title="No tenant credentials"
+                  message="Created tenant accounts and temporary credentials will appear here."
+                />
               ) : (
-                <Table responsive hover className="align-middle mb-0">
+                <Table responsive hover className="admin-table admin-table-hover align-middle mb-0">
                   <thead>
                     <tr>
                       <th>User ID</th>
@@ -296,8 +304,7 @@ export default function UserManagement() {
                   </tbody>
                 </Table>
               )}
-            </Card.Body>
-          </Card>
+          </AdminSectionCard>
         </div>
       </div>
 

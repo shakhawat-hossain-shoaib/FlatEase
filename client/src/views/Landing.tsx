@@ -18,7 +18,6 @@ export default function Landing() {
             <Nav className="ms-auto align-items-center gap-2">
               <Nav.Link href="#features" className="text-dark">Features</Nav.Link>
               <Nav.Link href="#benefits" className="text-dark">Benefits</Nav.Link>
-              <Nav.Link href="#pricing" className="text-dark">Pricing</Nav.Link>
               <Link to="/login" className="btn btn-outline-primary btn-sm ms-2">
                 Sign In
               </Link>

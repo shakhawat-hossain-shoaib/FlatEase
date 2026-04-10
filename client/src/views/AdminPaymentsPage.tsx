@@ -1,7 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Badge, Button, Card, Col, Form, Modal, Row, Spinner, Table } from 'react-bootstrap';
+import { Badge, Button, Col, Form, Modal, Row, Spinner, Table } from 'react-bootstrap';
+import { BsCashCoin, BsCreditCard2Front, BsPeople } from 'react-icons/bs';
 import ApiClient, { AdminTenantPaymentOption, TenantPaymentRecordEntity } from '../api';
 import { DashboardLayout } from './DashboardLayout';
+import { AdminEmptyState } from '../components/admin/AdminEmptyState';
+import { AdminPageHeader } from '../components/admin/AdminPageHeader';
+import { AdminSectionCard } from '../components/admin/AdminSectionCard';
 import toast from 'react-hot-toast';
 
 function formatMoney(value: string | number) {
@@ -145,17 +149,14 @@ export default function AdminPaymentsPage() {
 
   return (
     <DashboardLayout role="Admin">
-      <div style={{ background: '#f5f7fb', minHeight: '100vh' }}>
-        <div className="container-fluid py-2">
-          <div className="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
-            <div>
-              <h3 className="h4 mb-1">Payment Management</h3>
-              <p className="text-muted mb-0">Manage tenant monthly payment records and payment status.</p>
-            </div>
-          </div>
+      <div className="admin-page-bg">
+        <div className="container-fluid admin-page-container">
+          <AdminPageHeader
+            title="Payment Management"
+            subtitle="Manage tenant monthly payment records and payment status."
+          />
 
-          <Card className="border-0 shadow-sm mb-3">
-            <Card.Body>
+          <AdminSectionCard className="mb-3" title="Tenant Selector">
               <Row className="g-3 align-items-end">
                 <Col md={8} lg={6}>
                   <Form.Label>Select Tenant</Form.Label>
@@ -176,18 +177,15 @@ export default function AdminPaymentsPage() {
                 </Col>
                 <Col md={4} lg={6}>
                   {selectedTenant && (
-                    <div className="text-muted small">
-                      Tenant: <strong>{selectedTenant.name}</strong>
+                    <div className="text-muted small d-flex align-items-center gap-2">
+                      <BsPeople /> Tenant: <strong>{selectedTenant.name}</strong>
                     </div>
                   )}
                 </Col>
               </Row>
-            </Card.Body>
-          </Card>
+          </AdminSectionCard>
 
-          <Card className="border-0 shadow-sm">
-            <Card.Body>
-              <h5 className="mb-3">Payment Ledger</h5>
+          <AdminSectionCard title="Payment Ledger">
 
               {isLoadingPayments && (
                 <div className="d-flex align-items-center gap-2 text-muted py-3">
@@ -197,11 +195,15 @@ export default function AdminPaymentsPage() {
               )}
 
               {!isLoadingPayments && payments.length === 0 && (
-                <p className="text-muted mb-0">No payment records found for selected tenant.</p>
+                <AdminEmptyState
+                  icon={BsCashCoin}
+                  title="No payment records"
+                  message="No payment records were found for the selected tenant."
+                />
               )}
 
               {!isLoadingPayments && payments.length > 0 && (
-                <Table responsive hover className="align-middle mb-0">
+                <Table responsive hover className="admin-table admin-table-hover align-middle mb-0">
                   <thead>
                     <tr>
                       <th>Month</th>
@@ -221,7 +223,9 @@ export default function AdminPaymentsPage() {
                         <td>{formatMoney(payment.total_amount)}</td>
                         <td>{formatMoney(payment.amount_paid)}</td>
                         <td>
-                          <Badge bg={statusBadge(payment.status)}>{payment.status.split('_').join(' ')}</Badge>
+                          <Badge className={`text-capitalize badge-soft-${statusBadge(payment.status)}`}>
+                            {payment.status.split('_').join(' ')}
+                          </Badge>
                         </td>
                         <td>{formatDate(payment.paid_at)}</td>
                         <td className="text-end">
@@ -234,14 +238,13 @@ export default function AdminPaymentsPage() {
                   </tbody>
                 </Table>
               )}
-            </Card.Body>
-          </Card>
+          </AdminSectionCard>
         </div>
       </div>
 
       <Modal show={showModal} onHide={() => setShowModal(false)} centered>
         <Modal.Header closeButton>
-          <Modal.Title>Update Payment</Modal.Title>
+          <Modal.Title className="d-flex align-items-center gap-2"><BsCreditCard2Front /> Update Payment</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <Form>
