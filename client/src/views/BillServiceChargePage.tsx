@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Badge, Button, Card, Col, Form, Modal, Row, Spinner, Table } from 'react-bootstrap';
 import { BsGear, BsListCheck } from 'react-icons/bs';
 import toast from 'react-hot-toast';
@@ -78,30 +78,46 @@ export default function BillServiceChargePage() {
   useEffect(() => {
     const loadBuildings = async () => {
       setIsLoadingBuildings(true);
-      const response = await api.getAdminBuildings();
-      const items = response ?? [];
-      setBuildings(items);
-      if (items.length > 0) {
-        setSelectedBuildingId(String(items[0].id));
+      try {
+        const response = await api.getAdminBuildings();
+        const items = response ?? [];
+        setBuildings(items);
+        if (items.length > 0) {
+          setSelectedBuildingId(String(items[0].id));
+        } else {
+          setSelectedBuildingId('');
+        }
+      } catch {
+        setBuildings([]);
+        setSelectedBuildingId('');
+        toast.error('Failed to load buildings.');
+      } finally {
+        setIsLoadingBuildings(false);
       }
-      setIsLoadingBuildings(false);
     };
 
     void loadBuildings();
   }, [api]);
 
-  const loadChargeData = async (buildingId: number) => {
+  const loadChargeData = useCallback(async (buildingId: number) => {
     setIsLoadingData(true);
-    const response = await api.getAdminBillServiceCharges(buildingId);
-    if (response) {
-      setChargeTypes(response.charge_types ?? []);
-      setConfigs(response.configs ?? []);
-    } else {
+    try {
+      const response = await api.getAdminBillServiceCharges(buildingId);
+      if (response) {
+        setChargeTypes(response.charge_types ?? []);
+        setConfigs(response.configs ?? []);
+      } else {
+        setChargeTypes([]);
+        setConfigs([]);
+      }
+    } catch {
       setChargeTypes([]);
       setConfigs([]);
+      toast.error('Failed to load charge data.');
+    } finally {
+      setIsLoadingData(false);
     }
-    setIsLoadingData(false);
-  };
+  }, [api]);
 
   useEffect(() => {
     if (!selectedBuildingId) {
@@ -109,7 +125,7 @@ export default function BillServiceChargePage() {
     }
 
     void loadChargeData(Number(selectedBuildingId));
-  }, [selectedBuildingId]);
+  }, [selectedBuildingId, loadChargeData]);
 
   const handleCreateType = async () => {
     if (!selectedBuildingId) {
@@ -124,20 +140,24 @@ export default function BillServiceChargePage() {
     }
 
     setIsSavingType(true);
-    const response = await api.createAdminBillChargeType({
-      building_id: Number(selectedBuildingId),
-      display_name: trimmedName,
-      category: 'service',
-    });
+    try {
+      const response = await api.createAdminBillChargeType({
+        building_id: Number(selectedBuildingId),
+        display_name: trimmedName,
+        category: 'service',
+      });
 
-    if (response) {
-      toast.success('Service charge type created.');
-      setShowTypeModal(false);
-      setNewTypeName('');
-      await loadChargeData(Number(selectedBuildingId));
+      if (response) {
+        toast.success('Service charge type created.');
+        setShowTypeModal(false);
+        setNewTypeName('');
+        await loadChargeData(Number(selectedBuildingId));
+      }
+    } catch {
+      toast.error('Failed to create service charge type.');
+    } finally {
+      setIsSavingType(false);
     }
-
-    setIsSavingType(false);
   };
 
   const resetConfigForm = () => {
@@ -196,42 +216,45 @@ export default function BillServiceChargePage() {
     }
 
     setIsSavingConfig(true);
+    try {
+      if (editingConfig) {
+        const response = await api.updateAdminBillServiceChargeConfig(editingConfig.id, {
+          amount: parsedAmount,
+          recurrence,
+          effective_from: effectiveFrom,
+          effective_to: effectiveTo || undefined,
+          billing_month: billingMonth || undefined,
+          notes: notes || undefined,
+        });
 
-    if (editingConfig) {
-      const response = await api.updateAdminBillServiceChargeConfig(editingConfig.id, {
-        amount: parsedAmount,
-        recurrence,
-        effective_from: effectiveFrom,
-        effective_to: effectiveTo || undefined,
-        billing_month: billingMonth || undefined,
-        notes: notes || undefined,
-      });
+        if (response) {
+          toast.success('Charge configuration updated.');
+          setShowConfigModal(false);
+          await loadChargeData(Number(selectedBuildingId));
+        }
+      } else {
+        const response = await api.createAdminBillServiceChargeConfig({
+          building_id: Number(selectedBuildingId),
+          charge_type_id: Number(selectedTypeId),
+          amount: parsedAmount,
+          recurrence,
+          effective_from: effectiveFrom,
+          effective_to: effectiveTo || undefined,
+          billing_month: billingMonth || undefined,
+          notes: notes || undefined,
+        });
 
-      if (response) {
-        toast.success('Charge configuration updated.');
-        setShowConfigModal(false);
-        await loadChargeData(Number(selectedBuildingId));
+        if (response) {
+          toast.success('Charge configuration created.');
+          setShowConfigModal(false);
+          await loadChargeData(Number(selectedBuildingId));
+        }
       }
-    } else {
-      const response = await api.createAdminBillServiceChargeConfig({
-        building_id: Number(selectedBuildingId),
-        charge_type_id: Number(selectedTypeId),
-        amount: parsedAmount,
-        recurrence,
-        effective_from: effectiveFrom,
-        effective_to: effectiveTo || undefined,
-        billing_month: billingMonth || undefined,
-        notes: notes || undefined,
-      });
-
-      if (response) {
-        toast.success('Charge configuration created.');
-        setShowConfigModal(false);
-        await loadChargeData(Number(selectedBuildingId));
-      }
+    } catch {
+      toast.error('Failed to save charge configuration.');
+    } finally {
+      setIsSavingConfig(false);
     }
-
-    setIsSavingConfig(false);
   };
 
   const handleDeactivateConfig = async (config: BuildingChargeConfigEntity) => {
@@ -267,16 +290,20 @@ export default function BillServiceChargePage() {
     const billingMonthValue = new Date().toISOString().slice(0, 10);
 
     setIsMaterializing(true);
-    const response = await api.materializeAdminBillServiceCharges({
-      building_id: Number(selectedBuildingId),
-      billing_month: billingMonthValue,
-    });
+    try {
+      const response = await api.materializeAdminBillServiceCharges({
+        building_id: Number(selectedBuildingId),
+        billing_month: billingMonthValue,
+      });
 
-    if (response?.success) {
-      toast.success(`Materialized for ${response.processed_assignments} active assignments.`);
+      if (response?.success) {
+        toast.success(`Materialized for ${response.processed_assignments} active assignments.`);
+      }
+    } catch {
+      toast.error('Failed to materialize charges.');
+    } finally {
+      setIsMaterializing(false);
     }
-
-    setIsMaterializing(false);
   };
 
   return (

@@ -1,4 +1,4 @@
-import { ReactNode, useMemo, useState } from 'react';
+import { ReactNode, useEffect, useMemo, useState } from 'react';
 import { ListGroup, Button } from 'react-bootstrap';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
@@ -9,6 +9,7 @@ import {
   BsFolder,
   BsChatDots,
   BsBoxArrowRight,
+  BsList,
 } from 'react-icons/bs';
 import ApiClient from '../api';
 import { clearStoredAuthUser } from '../helpers/auth';
@@ -24,6 +25,11 @@ export function DashboardLayout({ role, children }: DashboardLayoutProps) {
   const location = useLocation();
   const api = useMemo(() => new ApiClient(), []);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    setIsSidebarOpen(false);
+  }, [location.pathname]);
 
   const handleLogout = async () => {
     if (isLoggingOut) {
@@ -70,17 +76,26 @@ export function DashboardLayout({ role, children }: DashboardLayoutProps) {
 
   const isAdmin = role === 'Admin';
 
+  const handleNavigate = (to: string) => {
+    navigate(to);
+  };
+
   return (
     <div className={`d-flex ${isAdmin ? 'admin-shell' : ''}`}>
       <div
-        className={`bg-light p-3 border-end ${isAdmin ? 'admin-sidebar' : ''}`}
+        className={`admin-sidebar-overlay ${isSidebarOpen ? 'show' : ''}`}
+        onClick={() => setIsSidebarOpen(false)}
+        aria-hidden="true"
+      />
+      <div
+        className={`bg-light p-3 border-end ${isAdmin ? 'admin-sidebar' : ''} ${isSidebarOpen ? 'sidebar-open' : ''}`}
         style={{ width: '250px', minHeight: '100vh', position: 'sticky', top: 0, flexShrink: 0 }}
       >
         <div className="d-flex align-items-center gap-2 mb-4 px-2 mt-1">
-          <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'var(--admin-primary)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.2rem' }}>
+          <div className="admin-brand-mark">
             F
           </div>
-          <h5 className="mb-0 fw-bold" style={{ color: 'var(--admin-text-primary)' }}>FlatEase</h5>
+          <h5 className="mb-0 fw-bold admin-brand-wordmark">FlatEase</h5>
         </div>
         <ListGroup variant="flush">
           {sidebarItems.map((item) => {
@@ -92,7 +107,7 @@ export function DashboardLayout({ role, children }: DashboardLayoutProps) {
                 action
                 active={isActive(item.to)}
                 className={`d-flex align-items-center ${isAdmin ? 'admin-sidebar-item' : ''}`}
-                onClick={() => navigate(item.to)}
+                onClick={() => handleNavigate(item.to)}
               >
                 <Icon className="me-2" /> {item.label}
               </ListGroup.Item>
@@ -102,20 +117,33 @@ export function DashboardLayout({ role, children }: DashboardLayoutProps) {
       </div>
 
       <div className="flex-grow-1">
-        <header className={`d-flex justify-content-end align-items-center gap-4 px-4 py-3 border-bottom bg-white ${isAdmin ? 'admin-topbar' : ''}`}>
-          {isAdmin && <CommandPalette />}
-          <span className="small text-muted mb-0 ms-auto">{role} Portal</span>
-          <Button
-            variant="link"
-            className="d-inline-flex align-items-center gap-1 p-0 text-dark text-decoration-none fw-semibold"
-            onClick={handleLogout}
-            disabled={isLoggingOut}
-          >
-            <BsBoxArrowRight size={14} />
-            {isLoggingOut ? 'Logging out...' : 'Logout'}
-          </Button>
+        <header className={`d-flex justify-content-between align-items-center gap-3 px-4 py-3 border-bottom bg-white ${isAdmin ? 'admin-topbar' : ''}`}>
+          <div className="d-flex align-items-center gap-2 admin-topbar-left">
+            <Button
+              type="button"
+              variant="light"
+              className="admin-sidebar-toggle d-lg-none"
+              onClick={() => setIsSidebarOpen((prev) => !prev)}
+              aria-label="Toggle sidebar"
+            >
+              <BsList size={20} />
+            </Button>
+            {isAdmin && <CommandPalette />}
+          </div>
+          <div className="d-flex align-items-center gap-3 admin-topbar-right">
+            <span className="small text-muted mb-0">{role} Portal</span>
+            <Button
+              variant="link"
+              className="d-inline-flex align-items-center gap-1 p-0 text-dark text-decoration-none fw-semibold"
+              onClick={handleLogout}
+              disabled={isLoggingOut}
+            >
+              <BsBoxArrowRight size={14} />
+              {isLoggingOut ? 'Logging out...' : 'Logout'}
+            </Button>
+          </div>
         </header>
-        <main className="p-4">{children}</main>
+        <main className="p-4 admin-content-main">{children}</main>
       </div>
     </div>
   );

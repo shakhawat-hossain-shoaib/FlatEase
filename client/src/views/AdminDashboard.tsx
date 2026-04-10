@@ -48,13 +48,20 @@ export default function AdminDashboard() {
   useEffect(() => {
     const loadSummary = async () => {
       setIsLoading(true);
-      const [summaryResponse, notificationResponse] = await Promise.all([
-        api.getAdminDashboardSummary(),
-        api.getNotifications(8),
-      ]);
-      setSummary(summaryResponse ?? null);
-      setMyNotifications(notificationResponse?.data ?? []);
-      setIsLoading(false);
+      try {
+        const [summaryResponse, notificationResponse] = await Promise.all([
+          api.getAdminDashboardSummary(),
+          api.getNotifications(8),
+        ]);
+        setSummary(summaryResponse ?? null);
+        setMyNotifications(notificationResponse?.data ?? []);
+      } catch {
+        setSummary(null);
+        setMyNotifications([]);
+        toast.error('Failed to load dashboard data.');
+      } finally {
+        setIsLoading(false);
+      }
     };
 
     void loadSummary();
@@ -67,22 +74,25 @@ export default function AdminDashboard() {
     }
 
     setIsSendingNotification(true);
+    try {
+      const response = await api.createAdminBroadcastNotification({
+        title: notificationTitle.trim(),
+        message: notificationMessage.trim(),
+      });
 
-    const response = await api.createAdminBroadcastNotification({
-      title: notificationTitle.trim(),
-      message: notificationMessage.trim(),
-    });
+      if (response?.success) {
+        toast.success(response.message || 'Notification sent successfully.');
+        setNotificationTitle('');
+        setNotificationMessage('');
 
-    if (response?.success) {
-      toast.success(response.message || 'Notification sent successfully.');
-      setNotificationTitle('');
-      setNotificationMessage('');
-
-      const notificationResponse = await api.getNotifications(8);
-      setMyNotifications(notificationResponse?.data ?? []);
+        const notificationResponse = await api.getNotifications(8);
+        setMyNotifications(notificationResponse?.data ?? []);
+      }
+    } catch {
+      toast.error('Failed to send notification.');
+    } finally {
+      setIsSendingNotification(false);
     }
-
-    setIsSendingNotification(false);
   };
 
   const currency = summary?.revenue_overview.currency ?? 'BDT';

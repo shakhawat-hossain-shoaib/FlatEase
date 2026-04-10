@@ -78,13 +78,22 @@ export default function AdminPaymentsPage() {
   useEffect(() => {
     const loadTenants = async () => {
       setIsLoadingTenants(true);
-      const response = await api.getAdminTenantPaymentOptions();
-      const items = response ?? [];
-      setTenants(items);
-      if (items.length > 0) {
-        setSelectedTenantId(String(items[0].id));
+      try {
+        const response = await api.getAdminTenantPaymentOptions();
+        const items = response ?? [];
+        setTenants(items);
+        if (items.length > 0) {
+          setSelectedTenantId(String(items[0].id));
+        } else {
+          setSelectedTenantId('');
+        }
+      } catch {
+        setTenants([]);
+        setSelectedTenantId('');
+        toast.error('Failed to load tenants.');
+      } finally {
+        setIsLoadingTenants(false);
       }
-      setIsLoadingTenants(false);
     };
 
     void loadTenants();
@@ -98,9 +107,15 @@ export default function AdminPaymentsPage() {
 
     const loadPayments = async () => {
       setIsLoadingPayments(true);
-      const response = await api.getAdminTenantPayments(Number(selectedTenantId));
-      setPayments(response?.data ?? []);
-      setIsLoadingPayments(false);
+      try {
+        const response = await api.getAdminTenantPayments(Number(selectedTenantId));
+        setPayments(response?.data ?? []);
+      } catch {
+        setPayments([]);
+        toast.error('Failed to load payments.');
+      } finally {
+        setIsLoadingPayments(false);
+      }
     };
 
     void loadPayments();
@@ -108,7 +123,7 @@ export default function AdminPaymentsPage() {
 
   const openEditModal = (payment: TenantPaymentRecordEntity) => {
     setEditingPayment(payment);
-    setAmountPaid(payment.amount_paid);
+    setAmountPaid(String(payment.amount_paid ?? ''));
     setPaymentMethod(payment.payment_method ?? '');
     setTransactionRef(payment.transaction_ref ?? '');
     setNotes(payment.notes ?? '');
@@ -128,23 +143,26 @@ export default function AdminPaymentsPage() {
     }
 
     setIsSaving(true);
+    try {
+      const response = await api.updateAdminPayment(editingPayment.id, {
+        amount_paid: markPaid ? undefined : parsedAmountPaid,
+        payment_method: paymentMethod || undefined,
+        transaction_ref: transactionRef || undefined,
+        notes: notes || undefined,
+        mark_paid: markPaid,
+      });
 
-    const response = await api.updateAdminPayment(editingPayment.id, {
-      amount_paid: markPaid ? undefined : parsedAmountPaid,
-      payment_method: paymentMethod || undefined,
-      transaction_ref: transactionRef || undefined,
-      notes: notes || undefined,
-      mark_paid: markPaid,
-    });
-
-    if (response) {
-      setPayments((prev) => prev.map((item) => (item.id === response.id ? response : item)));
-      toast.success('Payment updated successfully.');
-      setShowModal(false);
-      setEditingPayment(null);
+      if (response) {
+        setPayments((prev) => prev.map((item) => (item.id === response.id ? response : item)));
+        toast.success('Payment updated successfully.');
+        setShowModal(false);
+        setEditingPayment(null);
+      }
+    } catch {
+      toast.error('Failed to update payment.');
+    } finally {
+      setIsSaving(false);
     }
-
-    setIsSaving(false);
   };
 
   return (
