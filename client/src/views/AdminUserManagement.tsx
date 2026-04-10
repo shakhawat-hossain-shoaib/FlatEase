@@ -1,7 +1,10 @@
 import { useMemo, useState } from 'react';
-import { Button, Card, Col, Form, Row } from 'react-bootstrap';
+import { Button, Col, Form, Row } from 'react-bootstrap';
+import { BsArrowClockwise, BsPersonPlus } from 'react-icons/bs';
 import toast from 'react-hot-toast';
 import ApiClient from '../api';
+import { AdminPageHeader } from '../components/admin/AdminPageHeader';
+import { AdminSectionCard } from '../components/admin/AdminSectionCard';
 import { DashboardLayout } from './DashboardLayout';
 
 type RoleOption = 'admin' | 'tenant';
@@ -65,17 +68,19 @@ export default function AdminUserManagement() {
 
   return (
     <DashboardLayout role="Admin">
-      <div style={{ background: '#e8f0ff', minHeight: '100vh' }}>
-        <div className="container-fluid">
-          <div className="mb-4">
-            <h2 className="mb-1">User Management</h2>
-            <p className="text-muted mb-0">Create admin or tenant accounts from the dashboard.</p>
-          </div>
+      <div className="admin-page-bg">
+        <div className="container-fluid admin-page-container">
+          <AdminPageHeader
+            title="User Management"
+            subtitle="Create admin or tenant accounts from the dashboard."
+          />
 
           <Row>
             <Col xs={12} lg={8} xl={6}>
-              <Card className="p-4 shadow-sm">
-                <h5 className="mb-3">Create New User</h5>
+              <AdminSectionCard
+                title={<span className="d-flex align-items-center gap-2"><BsPersonPlus /> Create New User</span>}
+                className="h-100"
+              >
 
                 <Form onSubmit={handleSubmit}>
                   <Form.Group className="mb-3" controlId="createUserName">
@@ -136,6 +141,7 @@ export default function AdminUserManagement() {
 
                   <div className="d-flex gap-2">
                     <Button type="submit" disabled={isSubmitting}>
+                      <BsPersonPlus className="me-2" />
                       {isSubmitting ? 'Creating...' : 'Create User'}
                     </Button>
                     <Button
@@ -144,11 +150,12 @@ export default function AdminUserManagement() {
                       onClick={() => setForm(INITIAL_FORM)}
                       disabled={isSubmitting}
                     >
+                      <BsArrowClockwise className="me-2" />
                       Clear
                     </Button>
                   </div>
                 </Form>
-              </Card>
+              </AdminSectionCard>
             </Col>
           </Row>
         </div>

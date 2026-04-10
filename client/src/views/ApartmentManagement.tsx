@@ -3,6 +3,9 @@ import { Badge, Button, Card, Col, Form, Modal, Row } from 'react-bootstrap';
 import { BsBuilding, BsFileEarmarkArrowUp, BsGrid, BsPencil, BsPerson, BsPlus, BsTelephone, BsTrash } from 'react-icons/bs';
 import ApiClient, { BuildingEntity, CreateBuildingPayload, FloorEntity, TenantDocumentEntity, UnitEntity, UpdateBuildingPayload, UserEntity } from '../api';
 import { DashboardLayout } from './DashboardLayout';
+import { AdminEmptyState } from '../components/admin/AdminEmptyState';
+import { AdminPageHeader } from '../components/admin/AdminPageHeader';
+import { AdminSectionCard } from '../components/admin/AdminSectionCard';
 import toast from 'react-hot-toast';
 
 type UnitWithAssignment = UnitEntity & {
@@ -298,60 +301,61 @@ export default function ApartmentManagement() {
 
   return (
     <DashboardLayout role="Admin">
-      <div style={{ background: '#e8f0ff', minHeight: '100vh' }}>
-        <div className="container-fluid py-2">
-          <div className="d-flex align-items-start justify-content-between mb-4">
-            <div>
-              <h2 className="mb-1">Building & Tenant Management</h2>
-              <p className="text-muted mb-0">Select a building to view floor-wise unit occupancy and tenant details</p>
-            </div>
-          </div>
+      <div className="admin-page-bg">
+        <div className="container-fluid admin-page-container">
+          <AdminPageHeader
+            title="Building & Tenant Management"
+            subtitle="Select a building to view floor-wise occupancy and tenant details."
+          />
 
           <Row className="g-3 mb-4">
             <Col md={4}>
-              <Card className="border-0 shadow-sm h-100">
+              <Card className="admin-card admin-metric-card border-0 h-100">
                 <Card.Body>
-                  <small className="text-muted d-block">Buildings</small>
-                  <h4 className="mb-0">{buildings.length}</h4>
+                  <small className="admin-metric-label d-block">Buildings</small>
+                  <h4 className="admin-metric-value mb-0">{buildings.length}</h4>
                 </Card.Body>
               </Card>
             </Col>
             <Col md={4}>
-              <Card className="border-0 shadow-sm h-100">
+              <Card className="admin-card admin-metric-card border-0 h-100">
                 <Card.Body>
-                  <small className="text-muted d-block">Occupied Units</small>
-                  <h4 className="mb-0">{totalOccupied}</h4>
+                  <small className="admin-metric-label d-block">Occupied Units</small>
+                  <h4 className="admin-metric-value mb-0">{totalOccupied}</h4>
                 </Card.Body>
               </Card>
             </Col>
             <Col md={4}>
-              <Card className="border-0 shadow-sm h-100">
+              <Card className="admin-card admin-metric-card border-0 h-100">
                 <Card.Body>
-                  <small className="text-muted d-block">Vacant Units</small>
-                  <h4 className="mb-0">{totalVacant}</h4>
+                  <small className="admin-metric-label d-block">Vacant Units</small>
+                  <h4 className="admin-metric-value mb-0">{totalVacant}</h4>
                 </Card.Body>
               </Card>
             </Col>
           </Row>
 
-          <Card className="border-0 shadow-sm mb-4">
-            <Card.Header className="bg-white border-0 pt-4 px-4 d-flex align-items-center justify-content-between gap-2">
-              <div className="d-flex align-items-center gap-2">
-                <BsBuilding />
-                <h5 className="mb-0">Buildings</h5>
-              </div>
-              <Button
+          <AdminSectionCard
+            className="mb-4"
+            title={<span className="d-flex align-items-center gap-2"><BsBuilding /> Buildings</span>}
+            actions={<Button
                 size="sm"
                 variant="primary"
                 onClick={() => setIsCreateBuildingModalOpen(true)}
                 className="d-flex align-items-center gap-2"
               >
                 <BsPlus /> Add Building
-              </Button>
-            </Card.Header>
-            <Card.Body className="px-4 pb-4">
+              </Button>}
+          >
               {isLoadingBuildings && <div className="text-muted">Loading buildings...</div>}
-              {!isLoadingBuildings && buildings.length === 0 && <div className="text-muted">No buildings found.</div>}
+              {!isLoadingBuildings && buildings.length === 0 && (
+                <AdminEmptyState
+                  icon={BsBuilding}
+                  title="No buildings yet"
+                  message="Create your first building to start assigning floors and units."
+                  compact
+                />
+              )}
 
               <div className="d-flex flex-wrap gap-2">
                 {buildings.map((building) => (
@@ -364,17 +368,13 @@ export default function ApartmentManagement() {
                   </Button>
                 ))}
               </div>
-            </Card.Body>
-          </Card>
+          </AdminSectionCard>
 
           {selectedBuilding && (
-            <Card className="border-0 shadow-sm mb-4">
-              <Card.Header className="bg-white border-0 pt-4 px-4 d-flex align-items-center justify-content-between gap-2">
-                <div className="d-flex align-items-center gap-2">
-                  <BsBuilding />
-                  <h5 className="mb-0">Building Info</h5>
-                </div>
-                <div className="d-flex align-items-center gap-2">
+            <AdminSectionCard
+              className="mb-4"
+              title={<span className="d-flex align-items-center gap-2"><BsBuilding /> Building Info</span>}
+              actions={<>
                   <Button
                     size="sm"
                     variant="outline-primary"
@@ -393,9 +393,8 @@ export default function ApartmentManagement() {
                   >
                     <BsTrash /> {isDeletingBuilding ? 'Deleting...' : 'Delete Building'}
                   </Button>
-                </div>
-              </Card.Header>
-              <Card.Body className="px-4 pb-4">
+              </>}
+            >
                 <Row className="g-3">
                   <Col md={4}>
                     <small className="text-muted d-block">Name</small>
@@ -428,25 +427,32 @@ export default function ApartmentManagement() {
                     </div>
                   </Col>
                 </Row>
+            </AdminSectionCard>
+          )}
+
+          {!selectedBuilding && !isLoadingGrid && (
+            <Card className="admin-card border-0">
+              <Card.Body>
+                <AdminEmptyState
+                  icon={BsGrid}
+                  title="No building selected"
+                  message="Select a building from the list to view building details and the floor grid."
+                />
               </Card.Body>
             </Card>
           )}
 
-          {!selectedBuilding && !isLoadingGrid && (
-            <Card className="border-0 shadow-sm">
-              <Card.Body className="px-4 py-4 text-muted">Click a building name to view Building Info and Floor Grid.</Card.Body>
-            </Card>
-          )}
-
           {selectedBuilding && (
-            <Card className="border-0 shadow-sm">
-              <Card.Header className="bg-white border-0 pt-4 px-4 d-flex align-items-center gap-2">
-                <BsGrid />
-                <h5 className="mb-0">{`${selectedBuilding.name} - Floor Grid`}</h5>
-              </Card.Header>
-              <Card.Body className="px-4 pb-4">
+            <AdminSectionCard title={<span className="d-flex align-items-center gap-2"><BsGrid /> {`${selectedBuilding.name} - Floor Grid`}</span>}>
                 {isLoadingGrid && <div className="text-muted">Loading floor/unit layout...</div>}
-                {!isLoadingGrid && floors.length === 0 && <div className="text-muted">No floor data found for this building.</div>}
+                {!isLoadingGrid && floors.length === 0 && (
+                  <AdminEmptyState
+                    icon={BsGrid}
+                    title="No floors found"
+                    message="No floor data was found for this building yet."
+                    compact
+                  />
+                )}
 
                 {!isLoadingGrid &&
                   floors.map((floor) => (
@@ -462,7 +468,7 @@ export default function ApartmentManagement() {
                           return (
                             <Col key={unit.id} xs={12} sm={6} lg={3}>
                               <Card
-                                className="h-100 border-0 shadow-sm"
+                                className="h-100 admin-card border-0"
                                 role="button"
                                 onClick={() => void openUnit(unit)}
                                 style={{ cursor: 'pointer' }}
@@ -470,7 +476,7 @@ export default function ApartmentManagement() {
                                 <Card.Body>
                                   <div className="d-flex justify-content-between align-items-center mb-2">
                                     <h6 className="mb-0">{unit.unit_number}</h6>
-                                    <Badge bg={isOccupied ? 'success' : 'secondary'}>
+                                    <Badge className={isOccupied ? 'badge-soft-success' : 'badge-soft-secondary'}>
                                       {isOccupied ? 'Occupied' : 'Unassigned'}
                                     </Badge>
                                   </div>
@@ -492,8 +498,7 @@ export default function ApartmentManagement() {
                       </Row>
                     </div>
                   ))}
-              </Card.Body>
-            </Card>
+                </AdminSectionCard>
           )}
         </div>
       </div>
@@ -569,7 +574,7 @@ export default function ApartmentManagement() {
                               <small className="text-muted">{doc.original_filename}</small>
                             </div>
                             <div className="d-flex align-items-center gap-2">
-                              <Badge bg={doc.status === 'approved' ? 'success' : doc.status === 'rejected' ? 'danger' : 'secondary'}>
+                              <Badge className={doc.status === 'approved' ? 'badge-soft-success' : doc.status === 'rejected' ? 'badge-soft-danger' : 'badge-soft-secondary'}>
                                 {doc.status}
                               </Badge>
                               <Button

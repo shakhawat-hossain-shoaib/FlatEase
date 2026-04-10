@@ -7,6 +7,7 @@ import {
   BsClockHistory,
   BsExclamationCircle,
   BsExclamationTriangle,
+  BsInbox,
   BsPlus,
   BsSend,
   BsTools,
@@ -21,6 +22,8 @@ import ApiClient, {
   ComplaintSummary,
   TechnicianEntity,
 } from '../api';
+import { AdminEmptyState } from '../components/admin/AdminEmptyState';
+import { AdminPageHeader } from '../components/admin/AdminPageHeader';
 
 type UserRole = 'Admin' | 'Tenant' | 'Technician';
 
@@ -441,23 +444,28 @@ export default function ComplaintsPage({ role }: ComplaintsPageProps) {
       : role === 'Technician'
       ? 'View assigned complaints and update status as work progresses.'
       : 'Track your submitted requests and follow maintenance updates.';
+  const isAdminView = role === 'Admin';
 
   return (
     <DashboardLayout role={role}>
-      <div style={{ background: '#e8f0ff', minHeight: '100vh' }}>
-        <div className="container-fluid py-1">
-          <div className="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-4">
-            <div>
-              <h2 className="mb-1">{title}</h2>
-              <p className="text-muted mb-0">{subtitle}</p>
+      <div className={isAdminView ? 'admin-page-bg' : ''} style={!isAdminView ? { background: '#e8f0ff', minHeight: '100vh' } : undefined}>
+        <div className={`container-fluid ${isAdminView ? 'admin-page-container' : 'py-1'}`}>
+          {isAdminView ? (
+            <AdminPageHeader title={title} subtitle={subtitle} />
+          ) : (
+            <div className="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-4">
+              <div>
+                <h2 className="mb-1">{title}</h2>
+                <p className="text-muted mb-0">{subtitle}</p>
+              </div>
+              {role === 'Tenant' && (
+                <Button onClick={() => setShowCreateModal(true)}>
+                  <BsPlus className="me-2" />
+                  New Complaint
+                </Button>
+              )}
             </div>
-            {role === 'Tenant' && (
-              <Button onClick={() => setShowCreateModal(true)}>
-                <BsPlus className="me-2" />
-                New Complaint
-              </Button>
-            )}
-          </div>
+          )}
 
           <Row className="g-3 mb-4">
             {stats.map((stat) => {
@@ -465,7 +473,7 @@ export default function ComplaintsPage({ role }: ComplaintsPageProps) {
 
               return (
                 <Col key={stat.label} xs={6} lg={3}>
-                  <Card className="h-100 border-0 shadow-sm">
+                  <Card className={`h-100 border-0 shadow-sm ${isAdminView ? 'admin-card admin-metric-card' : ''}`}>
                     <Card.Body>
                       <div className="d-flex align-items-center gap-3">
                         <div className={`${stat.bgClass} rounded-3 p-3`}>
@@ -484,7 +492,7 @@ export default function ComplaintsPage({ role }: ComplaintsPageProps) {
           </Row>
 
           {role === 'Admin' && (
-            <Card className="border-0 shadow-sm mb-4">
+            <Card className="admin-card border-0 mb-4">
               <Card.Body className="py-3">
                 <Row className="g-2 align-items-end">
                   <Col md={5}>
@@ -543,11 +551,21 @@ export default function ComplaintsPage({ role }: ComplaintsPageProps) {
               <Spinner animation="border" />
             </div>
           ) : visibleComplaints.length === 0 ? (
-            <Card className="border-0 shadow-sm">
+            <Card className={`${isAdminView ? 'admin-card' : ''} border-0 shadow-sm`}>
               <Card.Body className="text-center py-5 text-muted">
-                {role === 'Admin' && (searchQuery || statusFilter !== 'all' || priorityFilter !== 'all')
-                  ? 'No complaints match your current filters.'
-                  : 'No complaints found yet.'}
+                {isAdminView ? (
+                  <AdminEmptyState
+                    icon={BsInbox}
+                    title={searchQuery || statusFilter !== 'all' || priorityFilter !== 'all' ? 'No matching complaints' : 'No complaints found'}
+                    message={searchQuery || statusFilter !== 'all' || priorityFilter !== 'all'
+                      ? 'Try clearing filters or broadening your search criteria.'
+                      : 'New complaints will appear here when tenants submit requests.'}
+                  />
+                ) : (
+                  <>
+                    No complaints found yet.
+                  </>
+                )}
               </Card.Body>
             </Card>
           ) : (
@@ -559,7 +577,7 @@ export default function ComplaintsPage({ role }: ComplaintsPageProps) {
                 );
 
                 return (
-                  <Card key={complaint.id} className="border-0 shadow-sm">
+                  <Card key={complaint.id} className={`border-0 shadow-sm ${isAdminView ? 'admin-card' : ''}`}>
                     <Card.Header className="bg-white border-0 pb-0 pt-4 px-4">
                       <div className="d-flex flex-column flex-lg-row justify-content-between gap-3">
                         <div className="d-flex gap-3">
@@ -586,7 +604,7 @@ export default function ComplaintsPage({ role }: ComplaintsPageProps) {
                           <div>
                             <div className="d-flex flex-wrap align-items-center gap-2 mb-1">
                               <h4 className="h5 mb-0">{complaint.title}</h4>
-                              <Badge bg={getStatusVariant(complaint.status)}>{formatStatus(complaint.status)}</Badge>
+                              <Badge className={`badge-soft-${getStatusVariant(complaint.status)}`}>{formatStatus(complaint.status)}</Badge>
                             </div>
                             {role === 'Admin' ? (
                               <>
@@ -620,7 +638,7 @@ export default function ComplaintsPage({ role }: ComplaintsPageProps) {
                           </div>
                         </div>
                         <div>
-                          <Badge bg={getPriorityVariant(complaint.priority)}>{formatPriority(complaint.priority)} Priority</Badge>
+                          <Badge className={`badge-soft-${getPriorityVariant(complaint.priority)}`}>{formatPriority(complaint.priority)} Priority</Badge>
                         </div>
                       </div>
                     </Card.Header>
@@ -650,7 +668,7 @@ export default function ComplaintsPage({ role }: ComplaintsPageProps) {
                                   />
                                   <div className="bg-light rounded-3 p-3">
                                     <div className="d-flex flex-column flex-md-row justify-content-between gap-2 mb-2">
-                                      <Badge bg="secondary" className="align-self-start">
+                                      <Badge className="align-self-start badge-soft-secondary">
                                         {formatStatus(event.new_status)}
                                       </Badge>
                                       <span className="text-muted small">{formatDateTime(event.changed_at)}</span>
@@ -695,7 +713,7 @@ export default function ComplaintsPage({ role }: ComplaintsPageProps) {
                         )}
 
                         {complaint.status === 'resolved' && (
-                          <Badge bg="success" className="ms-auto">
+                          <Badge className="ms-auto badge-soft-success">
                             <BsCheckCircle className="me-1" />
                             Resolved
                           </Badge>

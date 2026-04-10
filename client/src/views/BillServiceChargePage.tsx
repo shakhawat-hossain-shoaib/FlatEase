@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Badge, Button, Card, Col, Form, Modal, Row, Spinner, Table } from 'react-bootstrap';
+import { BsGear, BsListCheck } from 'react-icons/bs';
 import toast from 'react-hot-toast';
 import ApiClient, {
   BillChargeTypeEntity,
@@ -7,6 +8,9 @@ import ApiClient, {
   BuildingEntity,
 } from '../api';
 import { DashboardLayout } from './DashboardLayout';
+import { AdminEmptyState } from '../components/admin/AdminEmptyState';
+import { AdminPageHeader } from '../components/admin/AdminPageHeader';
+import { AdminSectionCard } from '../components/admin/AdminSectionCard';
 
 function formatMoney(value: string | number) {
   const num = typeof value === 'string' ? Number(value) : value;
@@ -277,20 +281,19 @@ export default function BillServiceChargePage() {
 
   return (
     <DashboardLayout role="Admin">
-      <div style={{ background: '#f5f7fb', minHeight: '100vh' }}>
-        <div className="container-fluid py-2">
-          <div className="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
-            <div>
-              <h3 className="h4 mb-1">Bill &amp; Service Charge</h3>
-              <p className="text-muted mb-0">Configure building-level utility bills and custom service charges.</p>
-            </div>
-            <Button variant="outline-primary" onClick={() => void handleMaterialize()} disabled={isMaterializing || !selectedBuildingId}>
+      <div className="admin-page-bg">
+        <div className="container-fluid admin-page-container">
+          <AdminPageHeader
+            title="Bill & Service Charge"
+            subtitle="Configure building-level utility bills and custom service charges."
+            action={
+              <Button variant="outline-primary" onClick={() => void handleMaterialize()} disabled={isMaterializing || !selectedBuildingId}>
               {isMaterializing ? 'Applying...' : 'Materialize Current Month'}
-            </Button>
-          </div>
+              </Button>
+            }
+          />
 
-          <Card className="border-0 shadow-sm mb-3">
-            <Card.Body>
+          <AdminSectionCard className="mb-3" title="Building & Charge Actions">
               <Row className="g-3 align-items-end">
                 <Col md={8} lg={6}>
                   <Form.Label>Building</Form.Label>
@@ -320,11 +323,10 @@ export default function BillServiceChargePage() {
                   </div>
                 </Col>
               </Row>
-            </Card.Body>
-          </Card>
+          </AdminSectionCard>
 
           {isLoadingData && (
-            <Card className="border-0 shadow-sm mb-3">
+            <Card className="admin-card border-0 mb-3">
               <Card.Body className="d-flex align-items-center gap-2 text-muted">
                 <Spinner animation="border" size="sm" />
                 Loading charge data...
@@ -334,10 +336,8 @@ export default function BillServiceChargePage() {
 
           <Row className="g-3">
             <Col lg={6}>
-              <Card className="border-0 shadow-sm h-100">
-                <Card.Body>
-                  <h5 className="mb-3">Fixed Utility Bills</h5>
-                  <Table responsive hover className="align-middle mb-0">
+              <AdminSectionCard className="h-100" title={<span className="d-flex align-items-center gap-2"><BsGear /> Fixed Utility Bills</span>}>
+                  <Table responsive hover className="admin-table admin-table-hover align-middle mb-0">
                     <thead>
                       <tr>
                         <th>Type</th>
@@ -350,7 +350,14 @@ export default function BillServiceChargePage() {
                     <tbody>
                       {utilityConfigs.length === 0 && (
                         <tr>
-                          <td colSpan={5} className="text-muted">No utility configurations yet.</td>
+                          <td colSpan={5}>
+                            <AdminEmptyState
+                              icon={BsListCheck}
+                              title="No utility configs"
+                              message="Add utility configurations to generate monthly billing items."
+                              compact
+                            />
+                          </td>
                         </tr>
                       )}
                       {utilityConfigs.map((config) => (
@@ -359,7 +366,7 @@ export default function BillServiceChargePage() {
                           <td>{formatMoney(config.amount)}</td>
                           <td>{formatDate(config.effective_from)}</td>
                           <td>
-                            <Badge bg={config.recurrence === 'monthly' ? 'primary' : 'secondary'}>{config.recurrence}</Badge>
+                            <Badge className={config.recurrence === 'monthly' ? 'badge-soft-primary' : 'badge-soft-secondary'}>{config.recurrence}</Badge>
                           </td>
                           <td className="text-end">
                             <Button size="sm" variant="outline-primary" className="me-2" onClick={() => openEditConfigModal(config)}>
@@ -373,15 +380,12 @@ export default function BillServiceChargePage() {
                       ))}
                     </tbody>
                   </Table>
-                </Card.Body>
-              </Card>
+              </AdminSectionCard>
             </Col>
 
             <Col lg={6}>
-              <Card className="border-0 shadow-sm h-100 mb-3">
-                <Card.Body>
-                  <h5 className="mb-3">Custom Service Charges</h5>
-                  <Table responsive hover className="align-middle mb-0">
+              <AdminSectionCard className="h-100 mb-3" title={<span className="d-flex align-items-center gap-2"><BsGear /> Custom Service Charges</span>}>
+                  <Table responsive hover className="admin-table admin-table-hover align-middle mb-0">
                     <thead>
                       <tr>
                         <th>Type</th>
@@ -394,7 +398,14 @@ export default function BillServiceChargePage() {
                     <tbody>
                       {serviceConfigs.length === 0 && (
                         <tr>
-                          <td colSpan={5} className="text-muted">No custom service configurations yet.</td>
+                          <td colSpan={5}>
+                            <AdminEmptyState
+                              icon={BsListCheck}
+                              title="No custom service configs"
+                              message="Create custom service charge types and link them here."
+                              compact
+                            />
+                          </td>
                         </tr>
                       )}
                       {serviceConfigs.map((config) => (
@@ -403,7 +414,7 @@ export default function BillServiceChargePage() {
                           <td>{formatMoney(config.amount)}</td>
                           <td>{formatDate(config.effective_from)}</td>
                           <td>
-                            <Badge bg={config.recurrence === 'monthly' ? 'primary' : 'secondary'}>{config.recurrence}</Badge>
+                            <Badge className={config.recurrence === 'monthly' ? 'badge-soft-primary' : 'badge-soft-secondary'}>{config.recurrence}</Badge>
                           </td>
                           <td className="text-end">
                             <Button size="sm" variant="outline-primary" className="me-2" onClick={() => openEditConfigModal(config)}>
@@ -417,15 +428,17 @@ export default function BillServiceChargePage() {
                       ))}
                     </tbody>
                   </Table>
-                </Card.Body>
-              </Card>
+              </AdminSectionCard>
 
-              <Card className="border-0 shadow-sm">
-                <Card.Body>
-                  <h6 className="mb-3">Available Custom Types</h6>
+              <AdminSectionCard title="Available Custom Types">
                   <div className="d-flex flex-wrap gap-2">
                     {serviceTypes.filter((type) => !type.is_system).length === 0 && (
-                      <span className="text-muted">No custom types added yet.</span>
+                      <AdminEmptyState
+                        icon={BsListCheck}
+                        title="No custom types"
+                        message="Create a custom type to start configuring service charges."
+                        compact
+                      />
                     )}
                     {serviceTypes
                       .filter((type) => !type.is_system)
@@ -438,8 +451,7 @@ export default function BillServiceChargePage() {
                         </div>
                       ))}
                   </div>
-                </Card.Body>
-              </Card>
+              </AdminSectionCard>
             </Col>
           </Row>
         </div>
