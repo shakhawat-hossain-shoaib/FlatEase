@@ -10,7 +10,6 @@ import AdminDashboard from './views/AdminDashboard';
 import ApartmentManagement from './views/ApartmentManagement';
 import UserManagement from './views/UserManagement';
 import ComplaintsPage from './views/ComplaintsPage';
-import DocumentsPage from './views/DocumentsPage';
 import TechnicianDashboard from './views/TechnicianDashboard';
 import AdminPaymentsPage from './views/AdminPaymentsPage';
 import BillServiceChargePage from './views/BillServiceChargePage';

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Badge, Button, Card, Col, Row, Spinner } from 'react-bootstrap';
-import { BsCalendar2Check, BsCloudArrowDown, BsHouseDoor, BsInfoCircle, BsPersonVcard, BsShieldLock } from 'react-icons/bs';
+import { BsCalendar2Check, BsCloudArrowDown, BsFileEarmarkText, BsHouseDoor, BsInfoCircle, BsPersonVcard, BsShieldLock } from 'react-icons/bs';
 import ApiClient, { CurrentUserEntity, TenantDocumentChecklistItem, TenantMonthlyPaymentSummary } from '../../api';
 import { AdminEmptyState } from '../../components/admin/AdminEmptyState';
 import { AdminPageHeader } from '../../components/admin/AdminPageHeader';
@@ -106,7 +106,7 @@ export default function MyLease() {
                       <div>
                         <div className="text-muted mb-1">Unit Number</div>
                         <h4 className="mb-1">{activeAssignment.unit?.unit_number ?? 'N/A'}</h4>
-                        <small className="text-muted">{[activeAssignment.unit?.floor?.floor_label, activeAssignment.unit?.building?.name].filter(Boolean).join(' · ') || 'No building details available'}</small>
+                        <small className="text-muted">{[summary?.unit.floor_label, summary?.unit.building_name].filter(Boolean).join(' · ') || 'No building details available'}</small>
                       </div>
                     </Card.Body>
                   </Card>
@@ -157,11 +157,11 @@ export default function MyLease() {
                       </Col>
                       <Col md={6}>
                         <div className="text-muted small mb-1">Building</div>
-                        <div className="fw-semibold">{activeAssignment.unit?.building?.name ?? 'N/A'}</div>
+                        <div className="fw-semibold">{summary?.unit.building_name ?? 'N/A'}</div>
                       </Col>
                       <Col md={6}>
                         <div className="text-muted small mb-1">Floor</div>
-                        <div className="fw-semibold">{activeAssignment.unit?.floor?.floor_label ?? 'N/A'}</div>
+                        <div className="fw-semibold">{summary?.unit.floor_label ?? 'N/A'}</div>
                       </Col>
                       <Col md={6}>
                         <div className="text-muted small mb-1">Area</div>

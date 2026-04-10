@@ -91,11 +91,8 @@ export function DashboardLayout({ role, children }: DashboardLayoutProps) {
         className={`bg-light p-3 border-end ${isAdmin ? 'admin-sidebar' : ''} ${isSidebarOpen ? 'sidebar-open' : ''}`}
         style={{ width: '250px', minHeight: '100vh', position: 'sticky', top: 0, flexShrink: 0 }}
       >
-        <div className="d-flex align-items-center gap-2 mb-4 px-2 mt-1">
-          <div className="admin-brand-mark">
-            F
-          </div>
-          <h5 className="mb-0 fw-bold admin-brand-wordmark">FlatEase</h5>
+        <div className="admin-brand-lockup mb-4 px-2 mt-1">
+          <h5 className="mb-0 admin-brand-wordmark">FlatEase</h5>
         </div>
         <ListGroup variant="flush">
           {sidebarItems.map((item) => {

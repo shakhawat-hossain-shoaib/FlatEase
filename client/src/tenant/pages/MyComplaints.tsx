@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Badge, Button, Card, Col, Form, Row, Spinner, Table } from 'react-bootstrap';
 import { BsChatDots, BsFilter, BsSearch, BsSendCheck, BsShieldCheck } from 'react-icons/bs';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import ApiClient, { ComplaintEntity, ComplaintPriority, ComplaintStatus } from '../../api';
 import { AdminEmptyState } from '../../components/admin/AdminEmptyState';
@@ -24,6 +24,7 @@ function getPriorityVariant(priority: ComplaintPriority) {
 
 export default function MyComplaints() {
   const api = useMemo(() => new ApiClient(), []);
+  const navigate = useNavigate();
   const [complaints, setComplaints] = useState<ComplaintEntity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -83,7 +84,7 @@ export default function MyComplaints() {
             title="My Complaints"
             subtitle="Track your submitted complaints and monitor status updates from the maintenance team."
             action={
-              <Button as={Link} to="/tenant/complaints/new">
+              <Button onClick={() => navigate('/tenant/complaints/new')}>
                 <BsChatDots className="me-1" /> New Complaint
               </Button>
             }

@@ -106,7 +106,7 @@ export default function Profile() {
                     </div>
                     <div className="admin-list-row py-3">
                       <div className="text-muted small">Building</div>
-                      <div className="fw-semibold">{activeAssignment?.unit?.building?.name ?? summary?.unit.building_name ?? 'N/A'}</div>
+                      <div className="fw-semibold">{summary?.unit.building_name ?? 'N/A'}</div>
                     </div>
                     <div className="admin-list-row py-3">
                       <div className="text-muted small">Lease End</div>

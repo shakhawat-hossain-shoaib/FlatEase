@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
-import { Button, Container, Form } from 'react-bootstrap';
+import { Button, Container, Form, InputGroup } from 'react-bootstrap';
 import { Link, useNavigate } from 'react-router-dom';
-import { BsBuilding, BsEnvelope, BsTelephone } from 'react-icons/bs';
+import { BsAt, BsLock, BsPerson, BsTelephone } from 'react-icons/bs';
 import toast from 'react-hot-toast';
 import ApiClient from '../api';
 import { storeOtpChallengeContext } from '../helpers/otp';
@@ -87,112 +87,132 @@ export default function Register() {
   };
 
   return (
-    <Container
-      fluid
-      className="d-flex align-items-center justify-content-center"
-      style={{ minHeight: '100vh', background: '#e8f0ff' }}
-    >
-      <div className="w-100" style={{ maxWidth: '520px' }}>
-        <div className="text-center mb-4">
-          <BsBuilding size={56} className="mb-2 text-primary" />
-          <h3 className="fw-bold">FlatEase</h3>
-          <p className="text-muted">Create your tenant account</p>
+    <Container fluid className="login-page-shell d-flex align-items-center justify-content-center">
+      <div className="login-card signup-card">
+        <div className="login-brand-block">
+          <h1 className="login-brand-title">Create Account</h1>
+          <p className="login-brand-subtitle">Set up your tenant profile to continue with FlatEase</p>
         </div>
-        <div className="card p-5 shadow">
-          <h5 className="mb-2 fw-bold">Register</h5>
-          <p className="text-muted mb-4">Fill in your details to get started</p>
-
-          <Form onSubmit={handleSubmit}>
-            <Form.Group className="mb-3" controlId="formRegisterName">
-              <Form.Label>Full Name</Form.Label>
+        <Form onSubmit={handleSubmit}>
+          <Form.Group className="mb-3" controlId="formRegisterName">
+            <Form.Label className="login-label">Full Name</Form.Label>
+            <InputGroup className="login-input-group">
+              <InputGroup.Text className="login-input-icon" aria-hidden="true">
+                <BsPerson />
+              </InputGroup.Text>
               <Form.Control
                 type="text"
-                placeholder="John Doe"
+                placeholder="Enter your full name"
                 name="name"
                 value={input.name}
                 onChange={handleChange}
                 required
-                className="border rounded-3 py-2"
+                className="login-input-control"
               />
-            </Form.Group>
+            </InputGroup>
+          </Form.Group>
 
-            <Form.Group className="mb-3" controlId="formRegisterEmail">
-              <Form.Label>Email</Form.Label>
+          <Form.Group className="mb-3" controlId="formRegisterEmail">
+            <Form.Label className="login-label">Email</Form.Label>
+            <InputGroup className="login-input-group">
+              <InputGroup.Text className="login-input-icon" aria-hidden="true">
+                <BsAt />
+              </InputGroup.Text>
               <Form.Control
                 type="email"
-                placeholder="john@example.com"
+                placeholder="Enter your email"
                 name="email"
                 value={input.email}
                 onChange={handleChange}
                 required
-                className="border rounded-3 py-2"
+                className="login-input-control"
               />
-            </Form.Group>
+            </InputGroup>
+          </Form.Group>
 
-            <Form.Group className="mb-3" controlId="formRegisterPhone">
-              <Form.Label>Phone</Form.Label>
+          <Form.Group className="mb-3" controlId="formRegisterPhone">
+            <Form.Label className="login-label">Phone</Form.Label>
+            <InputGroup className="login-input-group">
+              <InputGroup.Text className="login-input-icon" aria-hidden="true">
+                <BsTelephone />
+              </InputGroup.Text>
               <Form.Control
                 type="tel"
-                placeholder="+8801xxxxxxxxx"
+                placeholder="+8801XXXXXXXXX"
                 name="phone"
                 value={input.phone}
                 onChange={handleChange}
                 required={input.preferred_contact_method === 'sms'}
-                className="border rounded-3 py-2"
+                className="login-input-control"
               />
-              <Form.Text className="text-muted d-flex align-items-center gap-1 mt-1">
-                <BsTelephone /> Required only when SMS is selected.
-              </Form.Text>
-            </Form.Group>
+            </InputGroup>
+            <Form.Text className="login-helper-text">Required only when SMS is selected.</Form.Text>
+          </Form.Group>
 
-            <Form.Group className="mb-3" controlId="formRegisterPreferredContactMethod">
-              <Form.Label>Verification method</Form.Label>
-              <Form.Select name="preferred_contact_method" value={input.preferred_contact_method} onChange={handleChange}>
+          <Form.Group className="mb-3" controlId="formRegisterPreferredContactMethod">
+            <Form.Label className="login-label">Verification Method</Form.Label>
+            <InputGroup className="login-input-group">
+              <InputGroup.Text className="login-input-icon" aria-hidden="true">
+                <BsAt />
+              </InputGroup.Text>
+              <Form.Select
+                name="preferred_contact_method"
+                value={input.preferred_contact_method}
+                onChange={handleChange}
+                className="login-select-control"
+              >
                 <option value="email">Email</option>
                 <option value="sms">SMS</option>
               </Form.Select>
-              <Form.Text className="text-muted d-flex align-items-center gap-1 mt-1">
-                <BsEnvelope /> Choose where your one-time code is delivered.
-              </Form.Text>
-            </Form.Group>
+            </InputGroup>
+            <Form.Text className="login-helper-text">Choose where your one-time code is delivered.</Form.Text>
+          </Form.Group>
 
-            <Form.Group className="mb-3" controlId="formRegisterPassword">
-              <Form.Label>Password</Form.Label>
+          <Form.Group className="mb-3" controlId="formRegisterPassword">
+            <Form.Label className="login-label">Password</Form.Label>
+            <InputGroup className="login-input-group">
+              <InputGroup.Text className="login-input-icon" aria-hidden="true">
+                <BsLock />
+              </InputGroup.Text>
               <Form.Control
                 type="password"
-                placeholder="••••••••"
+                placeholder="Enter your password"
                 name="password"
                 value={input.password}
                 onChange={handleChange}
                 required
-                className="border rounded-3 py-2"
+                className="login-input-control"
               />
-            </Form.Group>
+            </InputGroup>
+          </Form.Group>
 
-            <Form.Group className="mb-3" controlId="formRegisterPasswordConfirmation">
-              <Form.Label>Confirm Password</Form.Label>
+          <Form.Group className="mb-3" controlId="formRegisterPasswordConfirmation">
+            <Form.Label className="login-label">Confirm Password</Form.Label>
+            <InputGroup className="login-input-group">
+              <InputGroup.Text className="login-input-icon" aria-hidden="true">
+                <BsLock />
+              </InputGroup.Text>
               <Form.Control
                 type="password"
-                placeholder="••••••••"
+                placeholder="Confirm your password"
                 name="password_confirmation"
                 value={input.password_confirmation}
                 onChange={handleChange}
                 required
-                className="border rounded-3 py-2"
+                className="login-input-control"
               />
-            </Form.Group>
+            </InputGroup>
+          </Form.Group>
 
-            <Button variant="primary" type="submit" className="w-100 py-2 fw-bold" disabled={isSubmitting}>
-              {isSubmitting ? 'Creating account...' : 'Create Account'}
-            </Button>
-          </Form>
+          <Button type="submit" className="login-submit-btn" disabled={isSubmitting}>
+            {isSubmitting ? 'Creating account...' : 'Create Account'}
+          </Button>
 
-          <div className="mt-3 text-center">
-            <small>
-              Already have an account? <Link to="/login">Sign in</Link>
-            </small>
+          <div className="login-register-row">
+            <span>Already have an account?</span>{' '}
+            <Link to="/login">Sign In</Link>
           </div>
-        </div>
+        </Form>
       </div>
     </Container>
   );

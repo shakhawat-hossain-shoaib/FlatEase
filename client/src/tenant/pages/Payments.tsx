@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Badge, Button, Card, Col, Form, Modal, Row, Spinner, Table } from 'react-bootstrap';
+import { BsCashStack } from 'react-icons/bs';
 import toast from 'react-hot-toast';
 import ApiClient, { TenantMonthlyPaymentSummary } from '../../api';
 import { AdminEmptyState } from '../../components/admin/AdminEmptyState';
@@ -43,13 +44,10 @@ export default function Payments() {
     const params = new URLSearchParams(window.location.search);
     const paymentStatus = params.get('payment_status');
     const transactionId = params.get('tran_id');
-    const rawAmount = params.get('amount');
 
     if (!paymentStatus) {
       return;
     }
-
-    const paidAmount = rawAmount ? parseFloat(rawAmount) : NaN;
 
     if (paymentStatus === 'success') {
       toast.success(transactionId ? `Payment successful. Transaction: ${transactionId}` : 'Payment successful.');

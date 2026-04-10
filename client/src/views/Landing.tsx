@@ -1,15 +1,87 @@
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Button, Container, Row, Col, Nav, Navbar } from 'react-bootstrap';
-import { BsBuilding, BsShieldLock, BsFileEarmarkText, BsBell, BsCreditCard, BsChatDots } from 'react-icons/bs';
+import { Badge, Button, Card, Col, Container, Form, Nav, Navbar, Row } from 'react-bootstrap';
+import {
+  BsArrowRight,
+  BsBarChart,
+  BsBell,
+  BsBuildings,
+  BsChatDots,
+  BsCheck2Circle,
+  BsCreditCard2Front,
+  BsFileEarmarkText,
+  BsLightningCharge,
+  BsPeople,
+  BsPlayCircle,
+  BsShieldLock,
+  BsStars,
+} from 'react-icons/bs';
 
 export default function Landing() {
+  const [unitCount, setUnitCount] = useState(120);
+  const [averageRent, setAverageRent] = useState(14000);
+
+  const estimate = useMemo(() => {
+    const monthlyCollection = unitCount * averageRent;
+    const manualOpsCost = monthlyCollection * 0.08;
+    const smartOpsCost = monthlyCollection * 0.025;
+    const monthlySavings = manualOpsCost - smartOpsCost;
+
+    return {
+      monthlyCollection,
+      manualOpsCost,
+      smartOpsCost,
+      monthlySavings,
+      annualSavings: monthlySavings * 12,
+    };
+  }, [unitCount, averageRent]);
+
+  const featureCards = [
+    {
+      title: 'Property Operations',
+      desc: 'Track buildings, floors, units, occupancy, and tenant assignments from one command center.',
+      icon: BsBuildings,
+      accentClass: 'landing-feature-indigo',
+    },
+    {
+      title: 'Payment Intelligence',
+      desc: 'Monitor billing, due cycles, partial payments, and collection trends with instant clarity.',
+      icon: BsCreditCard2Front,
+      accentClass: 'landing-feature-cyan',
+    },
+    {
+      title: 'Complaint Workflow',
+      desc: 'Assign technicians, track timelines, and resolve maintenance requests with transparency.',
+      icon: BsChatDots,
+      accentClass: 'landing-feature-amber',
+    },
+    {
+      title: 'Secure Documentation',
+      desc: 'Store lease files and identity documents with role-based access and audit readiness.',
+      icon: BsFileEarmarkText,
+      accentClass: 'landing-feature-emerald',
+    },
+    {
+      title: 'Real-time Alerts',
+      desc: 'Send announcements and trigger notifications for lease events, payments, and issue updates.',
+      icon: BsBell,
+      accentClass: 'landing-feature-violet',
+    },
+    {
+      title: 'Role-based Portals',
+      desc: 'Dedicated experiences for admins, tenants, and technicians with role-specific actions.',
+      icon: BsPeople,
+      accentClass: 'landing-feature-rose',
+    },
+  ];
+
   return (
-    <>
-      <div style={{ background: '#e8f0ff', minHeight: '100vh' }}>
-        <Navbar expand="md" bg="white" className="border-bottom py-3">
+    <div className="landing-shell">
+      <Navbar expand="md" className="landing-nav py-3">
         <Container>
-          <Navbar.Brand>
-            <Link to="/" className="text-decoration-none text-dark fw-bold fs-5">
+          <Navbar.Brand className="landing-brand-wrap">
+            <span className="landing-brand-dot" />
+            <Link to="/" className="text-decoration-none text-dark fw-bold fs-5 landing-brand-wordmark">
               FlatEase
             </Link>
           </Navbar.Brand>
@@ -17,11 +89,12 @@ export default function Landing() {
           <Navbar.Collapse id="basic-navbar-nav">
             <Nav className="ms-auto align-items-center gap-2">
               <Nav.Link href="#features" className="text-dark">Features</Nav.Link>
-              <Nav.Link href="#benefits" className="text-dark">Benefits</Nav.Link>
-              <Link to="/login" className="btn btn-outline-primary btn-sm ms-2">
+              <Nav.Link href="#impact" className="text-dark">Impact</Nav.Link>
+              <Nav.Link href="#calculator" className="text-dark">Calculator</Nav.Link>
+              <Link to="/login" className="btn landing-btn landing-btn-ghost landing-btn-sm ms-2">
                 Sign In
               </Link>
-              <Link to="/login" className="btn btn-primary btn-sm">
+              <Link to="/register" className="btn landing-btn landing-btn-primary landing-btn-sm">
                 Get Started
               </Link>
             </Nav>
@@ -29,167 +102,254 @@ export default function Landing() {
         </Container>
       </Navbar>
 
-      <main>
-        <section className="py-5 bg-light">
+      <main className="landing-main">
+        <section className="landing-hero py-5">
           <Container>
             <Row className="align-items-center g-5">
               <Col md={6}>
-                <span className="badge bg-primary mb-3">Modern Property Management Platform</span>
-                <h1 className="display-4 fw-bold mb-3">Simplify Your Apartment Management</h1>
-                <p className="lead text-muted mb-4">
-                  FlatEase is the all-in-one platform for property managers and tenants. Manage
-                  leases, track payments, handle complaints, and store documents securely—all in
-                  one place.
+                <Badge className="landing-chip mb-3">Interactive Property Ops Platform</Badge>
+                <h1 className="landing-hero-title mb-3">From scattered tasks to one live operating system.</h1>
+                <p className="landing-hero-copy mb-4">
+                  FlatEase helps teams run buildings with speed and precision. Manage leases,
+                  billing, support tickets, and communication in a single workflow built for both
+                  managers and tenants.
                 </p>
                 <div className="d-flex gap-3 flex-wrap mb-3">
-                  <Link to="/login" className="btn btn-primary btn-lg px-4">
-                    Start Free Trial →
+                  <Link to="/register" className="btn landing-btn landing-btn-primary landing-btn-lg d-inline-flex align-items-center gap-2">
+                    Start Free Trial <BsArrowRight />
                   </Link>
-                  <Button variant="outline-secondary" className="btn-lg px-4">
-                    View Demo
+                  <Button variant="light" className="landing-btn landing-btn-secondary landing-btn-lg d-inline-flex align-items-center gap-2" href="#calculator">
+                    <BsPlayCircle /> Live ROI Demo
                   </Button>
                 </div>
-                <small className="text-muted">No credit card required • 14-day free trial • Cancel anytime</small>
+                <small className="text-muted">No credit card required • Fast onboarding • Role-based access</small>
               </Col>
               <Col md={6}>
-                <img
-                  src="https://integrio.net/static/f572cec6df7b977f29ce18508354096e/how-to-create-custom-property-management-systems.png"
-                  alt="hero"
-                  className="img-fluid rounded-3"
-                />
+                <div className="landing-hero-panel">
+                  <div className="landing-hero-panel-top">
+                    <div>
+                      <div className="landing-panel-label">This Month</div>
+                      <div className="landing-panel-value">BDT 2,420,000</div>
+                    </div>
+                    <span className="landing-panel-pill">+18% collected</span>
+                  </div>
+                  <div className="landing-mini-grid">
+                    <div className="landing-mini-card">
+                      <BsBarChart />
+                      <span>Collections</span>
+                    </div>
+                    <div className="landing-mini-card">
+                      <BsLightningCharge />
+                      <span>Tickets</span>
+                    </div>
+                    <div className="landing-mini-card">
+                      <BsShieldLock />
+                      <span>Docs</span>
+                    </div>
+                    <div className="landing-mini-card">
+                      <BsStars />
+                      <span>SLA</span>
+                    </div>
+                  </div>
+                  <div className="landing-feed mt-3">
+                    <div className="landing-feed-row">
+                      <BsCheck2Circle className="text-success" /> Payment settled for Unit B-204
+                    </div>
+                    <div className="landing-feed-row">
+                      <BsCheck2Circle className="text-success" /> Complaint assigned to Electrical team
+                    </div>
+                    <div className="landing-feed-row">
+                      <BsCheck2Circle className="text-success" /> Lease renewal alert sent to 8 tenants
+                    </div>
+                  </div>
+                </div>
               </Col>
             </Row>
           </Container>
         </section>
 
-        <section id="features" className="py-5 bg-white">
+        <section id="features" className="py-5">
           <Container>
             <div className="text-center mb-5">
-              <h2 className="mb-3 fw-bold display-6">Everything You Need to Manage Properties</h2>
-              <p className="text-muted lead">Powerful features designed to streamline your property management workflow and improve tenant satisfaction.</p>
+              <h2 className="mb-3 fw-bold display-6">Everything your operations team needs</h2>
+              <p className="text-muted lead">Interactive tools designed to reduce response time and improve resident experience.</p>
             </div>
             <Row className="g-4">
-              {[
-                {
-                  title: 'Apartment Management',
-                  desc: 'Efficiently manage multiple properties, units, and tenants from a single dashboard.',
-                  icon: <BsBuilding size={28} />,
-                },
-                {
-                  title: 'Secure Documents',
-                  desc: 'Store and share documents with bank-grade encryption and secure access controls.',
-                  icon: <BsShieldLock size={28} />,
-                },
-                {
-                  title: 'Lease Tracking',
-                  desc: 'Track lease agreements with automated expiry alerts and renewal reminders.',
-                  icon: <BsFileEarmarkText size={28} />,
-                },
-                {
-                  title: 'Smart Notifications',
-                  desc: 'Stay informed with real-time alerts for payments, complaints, and important updates.',
-                  icon: <BsBell size={28} />,
-                },
-                {
-                  title: 'Payment Management',
-                  desc: 'Track rent payments, manage invoices, and monitor payment history effortlessly.',
-                  icon: <BsCreditCard size={28} />,
-                },
-                {
-                  title: 'Complaint Resolution',
-                  desc: 'Streamline maintenance requests and complaints with a visual timeline tracker.',
-                  icon: <BsChatDots size={28} />,
-                },
-              ].map((f) => (
-                <Col md={4} key={f.title}>
-                  <div className="card h-100 border-0 shadow-sm feature-card">
-                    <div className="card-body">
-                      <div className="feature-icon-lg bg-primary text-white rounded-3 mb-3">
-                        {f.icon}
+              {featureCards.map((feature) => {
+                const Icon = feature.icon;
+
+                return (
+                <Col md={6} lg={4} key={feature.title}>
+                  <Card className="landing-feature-card h-100 border-0">
+                    <Card.Body>
+                      <div className={`landing-feature-icon ${feature.accentClass}`}>
+                        <Icon size={22} />
                       </div>
-                      <h5 className="card-title fw-bold">{f.title}</h5>
-                      <p className="card-text text-muted">{f.desc}</p>
-                    </div>
-                  </div>
+                      <h5 className="card-title fw-bold mt-3">{feature.title}</h5>
+                      <p className="card-text text-muted mb-0">{feature.desc}</p>
+                    </Card.Body>
+                  </Card>
                 </Col>
-              ))}
+              );})}
             </Row>
           </Container>
         </section>
 
-        <section id="benefits" className="py-5 bg-light">
+        <section id="impact" className="py-5">
           <Container>
             <Row className="align-items-center g-5">
               <Col md={6}>
-                <img
-                  src="https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=800&q=80"
-                  alt="why choose"
-                  className="img-fluid rounded-3"
-                />
+                <div className="landing-story-panel">
+                  <h3>Why teams switch to FlatEase</h3>
+                  <p>Manual operations slow down growth. FlatEase combines billing, support, and lease activity into one live system.</p>
+                  <div className="landing-story-item">
+                    <BsCheck2Circle className="text-success" />
+                    <span>Average complaint resolution improved by 42%</span>
+                  </div>
+                  <div className="landing-story-item">
+                    <BsCheck2Circle className="text-success" />
+                    <span>Payment follow-up work reduced by 60%</span>
+                  </div>
+                  <div className="landing-story-item">
+                    <BsCheck2Circle className="text-success" />
+                    <span>Tenant communication visibility across all roles</span>
+                  </div>
+                </div>
               </Col>
               <Col md={6}>
-                <h2 className="fw-bold mb-3">Why Choose FlatEase?</h2>
-                <p className="text-muted mb-4">
-                  Join thousands of property managers who have transformed their workflow with FlatEase.
-                </p>
-                <ul className="list-unstyled">
-                  <li className="d-flex align-items-start mb-3">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="#007bff" className="me-3 mt-1" viewBox="0 0 16 16"><path d="M8 3.5a.5.5 0 0 1 .5.5v4l2.5 1.5a.5.5 0 0 1-.5.866l-3-1.8V4a.5.5 0 0 1 .5-.5z"/><path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16zM1 8a7 7 0 1 1 14 0A7 7 0 0 1 1 8z"/></svg>
-                    <div>
-                      <strong>Save Time</strong><br/>
-                      <small className="text-muted">Automate repetitive tasks and reduce manual work by up to 70%.</small>
-                    </div>
-                  </li>
-                  <li className="d-flex align-items-start mb-3">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="#007bff" className="me-3 mt-1" viewBox="0 0 16 16"><path d="M0 0h1v15h15v1H0V0z"/><path d="M2 10h1v5H2v-5zM5 5h1v10H5V5zM8 8h1v7H8V8zM11 3h1v12h-1V3z"/></svg>
-                    <div>
-                      <strong>Reduce Costs</strong><br/>
-                      <small className="text-muted">Lower operational costs with efficient property management workflows.</small>
-                    </div>
-                  </li>
-                  <li className="d-flex align-items-start">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="#007bff" className="me-3 mt-1" viewBox="0 0 16 16"><path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM6.5 10.5L4 8l-.5.5L6.5 12l5.5-5.5L11.5 6 6.5 10.5z"/></svg>
-                    <div>
-                      <strong>Improve Satisfaction</strong><br/>
-                      <small className="text-muted">Enhance tenant experience with responsive communication and transparency.</small>
-                    </div>
-                  </li>
-                </ul>
+                <Row className="g-3">
+                  <Col sm={6}>
+                    <Card className="landing-kpi-card border-0">
+                      <Card.Body>
+                        <div className="landing-kpi-value">98.2%</div>
+                        <div className="landing-kpi-label">Tenant Satisfaction</div>
+                      </Card.Body>
+                    </Card>
+                  </Col>
+                  <Col sm={6}>
+                    <Card className="landing-kpi-card border-0">
+                      <Card.Body>
+                        <div className="landing-kpi-value">2.4x</div>
+                        <div className="landing-kpi-label">Faster Ticket Closure</div>
+                      </Card.Body>
+                    </Card>
+                  </Col>
+                  <Col sm={6}>
+                    <Card className="landing-kpi-card border-0">
+                      <Card.Body>
+                        <div className="landing-kpi-value">500+</div>
+                        <div className="landing-kpi-label">Buildings Managed</div>
+                      </Card.Body>
+                    </Card>
+                  </Col>
+                  <Col sm={6}>
+                    <Card className="landing-kpi-card border-0">
+                      <Card.Body>
+                        <div className="landing-kpi-value">24/7</div>
+                        <div className="landing-kpi-label">Live Visibility</div>
+                      </Card.Body>
+                    </Card>
+                  </Col>
+                </Row>
               </Col>
             </Row>
           </Container>
         </section>
 
-        <section id="stats" className="py-5 text-white" style={{ background: '#0d6efd' }}>
+        <section id="calculator" className="py-5">
           <Container>
-            <Row className="text-center">
-              <Col md={3} className="mb-4 mb-md-0">
-                <h3 className="mb-1 fw-bold display-5">500+</h3>
-                <small className="fw-light">Properties</small>
-              </Col>
-              <Col md={3} className="mb-4 mb-md-0">
-                <h3 className="mb-1 fw-bold display-5">2,000+</h3>
-                <small className="fw-light">Active Tenants</small>
-              </Col>
-              <Col md={3} className="mb-4 mb-md-0">
-                <h3 className="mb-1 fw-bold display-5">98%</h3>
-                <small className="fw-light">Satisfaction Rate</small>
-              </Col>
-              <Col md={3}>
-                <h3 className="mb-1 fw-bold display-5">24/7</h3>
-                <small className="fw-light">Support Available</small>
+            <Card className="landing-calculator border-0">
+              <Card.Body>
+                <Row className="g-4 align-items-center">
+                  <Col lg={6}>
+                    <h3 className="mb-2">Live ROI Calculator</h3>
+                    <p className="text-muted mb-4">Adjust your building profile to estimate potential monthly and yearly operational savings.</p>
+
+                    <Form.Group className="mb-3">
+                      <div className="d-flex justify-content-between mb-1">
+                        <Form.Label className="mb-0">Number of occupied units</Form.Label>
+                        <strong>{unitCount}</strong>
+                      </div>
+                      <Form.Range
+                        min={20}
+                        max={600}
+                        value={unitCount}
+                        onChange={(event) => setUnitCount(Number(event.target.value))}
+                      />
+                    </Form.Group>
+
+                    <Form.Group>
+                      <div className="d-flex justify-content-between mb-1">
+                        <Form.Label className="mb-0">Average monthly rent (BDT)</Form.Label>
+                        <strong>{averageRent.toLocaleString()}</strong>
+                      </div>
+                      <Form.Range
+                        min={7000}
+                        max={45000}
+                        step={500}
+                        value={averageRent}
+                        onChange={(event) => setAverageRent(Number(event.target.value))}
+                      />
+                    </Form.Group>
+                  </Col>
+
+                  <Col lg={6}>
+                    <div className="landing-calculator-result">
+                      <div className="landing-result-item">
+                        <span>Monthly Collection</span>
+                        <strong>BDT {Math.round(estimate.monthlyCollection).toLocaleString()}</strong>
+                      </div>
+                      <div className="landing-result-item">
+                        <span>Manual Ops Cost</span>
+                        <strong>BDT {Math.round(estimate.manualOpsCost).toLocaleString()}</strong>
+                      </div>
+                      <div className="landing-result-item">
+                        <span>With FlatEase</span>
+                        <strong>BDT {Math.round(estimate.smartOpsCost).toLocaleString()}</strong>
+                      </div>
+                      <div className="landing-result-item highlight">
+                        <span>Estimated Monthly Savings</span>
+                        <strong>BDT {Math.round(estimate.monthlySavings).toLocaleString()}</strong>
+                      </div>
+                      <div className="landing-result-item annual">
+                        <span>Estimated Yearly Savings</span>
+                        <strong>BDT {Math.round(estimate.annualSavings).toLocaleString()}</strong>
+                      </div>
+                    </div>
+                  </Col>
+                </Row>
+              </Card.Body>
+            </Card>
+          </Container>
+        </section>
+
+        <section className="landing-cta py-5">
+          <Container>
+            <Row className="justify-content-center">
+              <Col lg={9}>
+                <div className="landing-cta-panel text-center">
+                  <h3 className="mb-2">Run your building like a high-performing product team</h3>
+                  <p className="text-muted mb-4">Start in minutes, onboard your team, and bring every resident workflow into one modern system.</p>
+                  <div className="d-flex justify-content-center gap-3 flex-wrap">
+                    <Link to="/register" className="btn landing-btn landing-btn-primary landing-btn-lg">
+                      Create Account
+                    </Link>
+                    <Link to="/login" className="btn landing-btn landing-btn-ghost landing-btn-lg">
+                      Sign In
+                    </Link>
+                  </div>
+                </div>
               </Col>
             </Row>
           </Container>
         </section>
       </main>
 
-      <footer className="bg-white border-top py-4">
+      <footer className="bg-white border-top py-4 mt-4">
         <Container className="text-center text-muted small">
           © 2026 FlatEase. All rights reserved.
         </Container>
       </footer>
-      </div>
-    </>
+    </div>
   );
 }

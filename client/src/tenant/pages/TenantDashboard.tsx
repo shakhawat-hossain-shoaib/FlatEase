@@ -62,7 +62,7 @@ export default function TenantDashboard() {
     {
       title: 'Unit',
       value: activeAssignment?.unit?.unit_number ?? summary?.unit.unit_number ?? 'N/A',
-      subtitle: [activeAssignment?.unit?.floor?.floor_label ?? summary?.unit.floor_label, activeAssignment?.unit?.building?.name ?? summary?.unit.building_name]
+      subtitle: [summary?.unit.floor_label, summary?.unit.building_name]
         .filter(Boolean)
         .join(' · ') || 'No assignment details',
       icon: BsHouseDoor,
