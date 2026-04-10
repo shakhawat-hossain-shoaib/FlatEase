@@ -7,6 +7,7 @@ use App\Models\Payment;
 use App\Models\TenantPayment;
 use App\Models\PartialPayment;
 use App\Models\UnitTenantAssignment;
+use App\Services\BillingChargeService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -18,6 +19,13 @@ use Illuminate\Support\Str;
 
 class TenantPaymentController extends Controller
 {
+    private BillingChargeService $billingChargeService;
+
+    public function __construct(BillingChargeService $billingChargeService)
+    {
+        $this->billingChargeService = $billingChargeService;
+    }
+
     public function currentSummary(Request $request)
     {
         $user = $request->user();
@@ -80,9 +88,16 @@ class TenantPaymentController extends Controller
                         'category' => 'utility',
                         'amount' => 0,
                     ],
+                    [
+                        'key' => 'service',
+                        'label' => 'Service Charge',
+                        'category' => 'service',
+                        'amount' => 0,
+                    ],
                 ],
                 'subtotal_rent' => 0,
                 'subtotal_utility' => 0,
+                'subtotal_service' => 0,
                 'total_due' => 0,
                 'status' => 'pending',
                 'recent_payments' => [],
@@ -114,9 +129,36 @@ class TenantPaymentController extends Controller
             ->limit(4)
             ->get();
 
+        $nextPayment->load('chargeItems.chargeType');
+
         $rentAmount = (float) $nextPayment->rent_amount;
         $utilityTotal = (float) $nextPayment->utility_amount;
+        $serviceTotal = (float) $nextPayment->service_amount;
         $totalDue = max((float) $nextPayment->total_amount - (float) $nextPayment->amount_paid, 0);
+
+        $chargeRows = collect([
+            [
+                'key' => 'rent',
+                'label' => 'Monthly Rent',
+                'category' => 'rent',
+                'amount' => round($rentAmount, 2),
+            ],
+        ]);
+
+        foreach ($nextPayment->chargeItems as $lineItem) {
+            $key = 'charge_' . (int) $lineItem->id;
+            $keyName = optional($lineItem->chargeType)->key_name;
+            if (!empty($keyName)) {
+                $key = (string) $keyName;
+            }
+
+            $chargeRows->push([
+                'key' => $key,
+                'label' => (string) $lineItem->label_snapshot,
+                'category' => (string) $lineItem->category_snapshot,
+                'amount' => round((float) $lineItem->amount, 2),
+            ]);
+        }
 
         return response()->json([
             'month' => Carbon::parse($nextPayment->billing_month)->format('F Y'),
@@ -136,22 +178,10 @@ class TenantPaymentController extends Controller
                 'floor_label' => optional(optional($assignment->unit)->floor)->floor_label,
                 'building_name' => optional(optional($assignment->unit)->building)->name,
             ],
-            'charges' => [
-                [
-                    'key' => 'rent',
-                    'label' => 'Monthly Rent',
-                    'category' => 'rent',
-                    'amount' => round($rentAmount, 2),
-                ],
-                [
-                    'key' => 'utility',
-                    'label' => 'Utility',
-                    'category' => 'utility',
-                    'amount' => round($utilityTotal, 2),
-                ],
-            ],
+            'charges' => $chargeRows->values(),
             'subtotal_rent' => round($rentAmount, 2),
             'subtotal_utility' => round($utilityTotal, 2),
+            'subtotal_service' => round($serviceTotal, 2),
             'total_due' => round($totalDue, 2),
             'status' => (string) $nextPayment->status,
             'recent_payments' => $recentPayments->map(function (TenantPayment $payment) {
@@ -638,7 +668,7 @@ class TenantPaymentController extends Controller
 
         $months->each(function (Carbon $monthStart) use ($assignment, $rentAmount, $utilityAmount, $totalAmount, $today) {
             $dueDate = $monthStart->copy()->setDay(10);
-            TenantPayment::firstOrCreate(
+            $payment = TenantPayment::firstOrCreate(
                 [
                     'tenant_user_id' => (int) $assignment->tenant_user_id,
                     'billing_month' => $monthStart->toDateString(),
@@ -648,11 +678,14 @@ class TenantPaymentController extends Controller
                     'due_date' => $dueDate->toDateString(),
                     'rent_amount' => round($rentAmount, 2),
                     'utility_amount' => round($utilityAmount, 2),
+                    'service_amount' => 0,
                     'total_amount' => round($totalAmount, 2),
                     'amount_paid' => 0,
                     'status' => $this->resolvePaymentStatus($dueDate, $totalAmount, 0, $today),
                 ]
             );
+
+            $this->billingChargeService->ensureMonthlyLineItems($payment, $assignment);
         });
     }
 

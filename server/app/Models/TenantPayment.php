@@ -16,6 +16,7 @@ class TenantPayment extends Model
         'due_date',
         'rent_amount',
         'utility_amount',
+        'service_amount',
         'total_amount',
         'amount_paid',
         'status',
@@ -31,6 +32,7 @@ class TenantPayment extends Model
         'due_date' => 'date',
         'rent_amount' => 'decimal:2',
         'utility_amount' => 'decimal:2',
+        'service_amount' => 'decimal:2',
         'total_amount' => 'decimal:2',
         'amount_paid' => 'decimal:2',
         'paid_at' => 'datetime',
@@ -54,5 +56,10 @@ class TenantPayment extends Model
     public function partialPayments()
     {
         return $this->hasMany(PartialPayment::class, 'tenant_payment_id');
+    }
+
+    public function chargeItems()
+    {
+        return $this->hasMany(TenantPaymentChargeItem::class, 'tenant_payment_id');
     }
 }

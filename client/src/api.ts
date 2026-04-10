@@ -327,8 +327,37 @@ export type AdminResetCredentialResponse = {
 export type TenantPaymentCharge = {
   key: string;
   label: string;
-  category: 'rent' | 'utility';
+  category: 'rent' | 'utility' | 'service';
   amount: number;
+};
+
+export type BillChargeTypeEntity = {
+  id: number;
+  building_id?: number | null;
+  key_name: string;
+  display_name: string;
+  category: 'utility' | 'service';
+  is_system: boolean;
+  is_active: boolean;
+};
+
+export type BuildingChargeConfigEntity = {
+  id: number;
+  building_id: number;
+  charge_type_id: number;
+  amount: string;
+  recurrence: 'monthly' | 'one_time';
+  billing_month?: string | null;
+  effective_from: string;
+  effective_to?: string | null;
+  is_active: boolean;
+  notes?: string | null;
+  charge_type?: BillChargeTypeEntity;
+};
+
+export type BillServiceChargeIndexResponse = {
+  charge_types: BillChargeTypeEntity[];
+  configs: BuildingChargeConfigEntity[];
 };
 
 export type TenantRecentPayment = {
@@ -381,6 +410,7 @@ export type TenantPaymentRecordEntity = {
   due_date: string;
   rent_amount: string;
   utility_amount: string;
+  service_amount?: string;
   total_amount: string;
   amount_paid: string;
   status: 'pending' | 'partially_paid' | 'paid' | 'overdue';
@@ -413,6 +443,7 @@ export type TenantMonthlyPaymentSummary = {
   charges: TenantPaymentCharge[];
   subtotal_rent: number;
   subtotal_utility: number;
+  subtotal_service?: number;
   total_due: number;
   status: 'pending' | 'partially_paid' | 'paid' | 'overdue';
   recent_payments?: TenantRecentPayment[];
@@ -958,6 +989,121 @@ class ApiClient {
     }
   }
 
+  async getAdminBillServiceCharges(buildingId: number): Promise<BillServiceChargeIndexResponse | undefined> {
+    try {
+      const response = await this.client.get('/api/admin/bill-service-charges', {
+        params: { building_id: buildingId },
+      });
+      return response.data;
+    } catch (error) {
+      this.handleError(error);
+      return undefined;
+    }
+  }
+
+  async createAdminBillChargeType(payload: {
+    building_id: number;
+    display_name: string;
+    category: 'service';
+  }): Promise<BillChargeTypeEntity | undefined> {
+    try {
+      const headers = await this.csrfHeaders();
+      const response = await this.client.post('/api/admin/bill-service-charge-types', payload, { headers });
+      return response.data;
+    } catch (error) {
+      this.handleError(error);
+      return undefined;
+    }
+  }
+
+  async updateAdminBillChargeType(typeId: number, payload: {
+    display_name: string;
+  }): Promise<BillChargeTypeEntity | undefined> {
+    try {
+      const headers = await this.csrfHeaders();
+      const response = await this.client.patch(`/api/admin/bill-service-charge-types/${typeId}`, payload, { headers });
+      return response.data;
+    } catch (error) {
+      this.handleError(error);
+      return undefined;
+    }
+  }
+
+  async deleteAdminBillChargeType(typeId: number): Promise<BasicApiResponse | undefined> {
+    try {
+      const headers = await this.csrfHeaders();
+      const response = await this.client.delete(`/api/admin/bill-service-charge-types/${typeId}`, { headers });
+      return response.data;
+    } catch (error) {
+      this.handleError(error);
+      return undefined;
+    }
+  }
+
+  async createAdminBillServiceChargeConfig(payload: {
+    building_id: number;
+    charge_type_id: number;
+    amount: number;
+    recurrence: 'monthly' | 'one_time';
+    effective_from: string;
+    effective_to?: string;
+    billing_month?: string;
+    notes?: string;
+  }): Promise<BuildingChargeConfigEntity | undefined> {
+    try {
+      const headers = await this.csrfHeaders();
+      const response = await this.client.post('/api/admin/bill-service-charges', payload, { headers });
+      return response.data;
+    } catch (error) {
+      this.handleError(error);
+      return undefined;
+    }
+  }
+
+  async updateAdminBillServiceChargeConfig(configId: number, payload: {
+    amount?: number;
+    recurrence?: 'monthly' | 'one_time';
+    effective_from?: string;
+    effective_to?: string;
+    billing_month?: string;
+    notes?: string;
+    is_active?: boolean;
+  }): Promise<BuildingChargeConfigEntity | undefined> {
+    try {
+      const headers = await this.csrfHeaders();
+      const response = await this.client.patch(`/api/admin/bill-service-charges/${configId}`, payload, { headers });
+      return response.data;
+    } catch (error) {
+      this.handleError(error);
+      return undefined;
+    }
+  }
+
+  async deleteAdminBillServiceChargeConfig(configId: number): Promise<BasicApiResponse | undefined> {
+    try {
+      const headers = await this.csrfHeaders();
+      const response = await this.client.delete(`/api/admin/bill-service-charges/${configId}`, { headers });
+      return response.data;
+    } catch (error) {
+      this.handleError(error);
+      return undefined;
+    }
+  }
+
+  async materializeAdminBillServiceCharges(payload: {
+    building_id: number;
+    billing_month: string;
+  }): Promise<{ success: boolean; processed_assignments: number; billing_month: string } | undefined> {
+    try {
+      const headers = await this.csrfHeaders();
+      const response = await this.client.post('/api/admin/bill-service-charges/materialize', payload, { headers });
+      return response.data;
+    } catch (error) {
+      this.handleError(error);
+      return undefined;
+    }
+  }
+
   async getAssignableTenants(): Promise<UserEntity[] | undefined> {
     try {
       const response = await this.client.get('/api/admin/users/assignable-tenants');
@@ -1031,6 +1177,17 @@ class ApiClient {
     try {
       const headers = await this.csrfHeaders();
       const response = await this.client.post(`/api/admin/users/${userId}/reset-credential`, {}, { headers });
+      return response.data;
+    } catch (error) {
+      this.handleError(error);
+      return undefined;
+    }
+  }
+
+  async deleteAdminUser(userId: number): Promise<BasicApiResponse | undefined> {
+    try {
+      const headers = await this.csrfHeaders();
+      const response = await this.client.delete(`/api/admin/users/${userId}`, { headers });
       return response.data;
     } catch (error) {
       this.handleError(error);

@@ -48,6 +48,7 @@ services:
       - "${BACKEND_PORT:-8000}:80"
     volumes:
       - ./server:/var/www/html
+      - backend_vendor:/var/www/html/vendor
       - ./database:/var/www/database
       - ./server/storage:/var/www/html/storage
       - ./server/bootstrap/cache:/var/www/html/bootstrap/cache
@@ -74,6 +75,8 @@ services:
 
 volumes:
   mysql_data:
+    driver: local
+  backend_vendor:
     driver: local
 
 networks:

@@ -5,7 +5,7 @@ $ErrorActionPreference = "Stop"
 Write-Host "FlatEase Docker Setup"
 Write-Host "========================"
 
-$targetBranch = if ($env:TARGET_BRANCH) { $env:TARGET_BRANCH } else { "Dockerizing" }
+$targetBranch = if ($env:TARGET_BRANCH) { $env:TARGET_BRANCH } else { "" }
 
 if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
     Write-Error "Docker is not installed. Please install Docker first."
@@ -29,11 +29,13 @@ if (-not (Test-Path ".env")) {
     }
 }
 
-Write-Host ""
-Write-Host "Syncing repository on branch: $targetBranch"
-git fetch --all
-git checkout $targetBranch
-git pull origin $targetBranch
+if ($targetBranch) {
+    Write-Host ""
+    Write-Host "Syncing repository on branch: $targetBranch"
+    git fetch --all
+    git checkout $targetBranch
+    git pull origin $targetBranch
+}
 
 Write-Host ""
 Write-Host "Stopping old containers and removing stale volumes..."
@@ -41,11 +43,7 @@ docker compose --env-file .env down -v --remove-orphans
 
 Write-Host ""
 Write-Host "Building Docker images (fresh build)..."
-docker compose --env-file .env build --no-cache --pull
-
-Write-Host ""
-Write-Host "Starting services..."
-docker compose --env-file .env up -d
+docker compose --env-file .env up -d --build --force-recreate
 
 Write-Host ""
 Write-Host "Services started successfully."
@@ -53,12 +51,33 @@ Write-Host ""
 Write-Host "Waiting for services to be ready..."
 Start-Sleep -Seconds 5
 
+function Invoke-WithRetry {
+    param(
+        [scriptblock]$ScriptBlock,
+        [int]$MaxAttempts = 12
+    )
+
+    for ($attempt = 1; $attempt -le $MaxAttempts; $attempt++) {
+        & $ScriptBlock
+        if ($LASTEXITCODE -eq 0) {
+            return
+        }
+
+        if ($attempt -eq $MaxAttempts) {
+            throw "Command failed after $MaxAttempts attempts."
+        }
+
+        Write-Host "Command failed. Retrying in 5 seconds..."
+        Start-Sleep -Seconds 5
+    }
+}
+
 Write-Host ""
 Write-Host "Running SQL database migrations..."
-docker compose --env-file .env exec -T backend bash /var/www/database/migrations/run_sql_migrations.sh
+Invoke-WithRetry { docker compose --env-file .env exec -T backend bash /var/www/database/migrations/run_sql_migrations.sh }
 
 Write-Host "Running SQL seed data..."
-docker compose --env-file .env exec -T backend bash /var/www/database/seeds/run_sql_seeds.sh
+Invoke-WithRetry { docker compose --env-file .env exec -T backend bash /var/www/database/seeds/run_sql_seeds.sh }
 
 Write-Host ""
 Write-Host "Database setup complete."
@@ -73,5 +92,9 @@ Write-Host ""
 Write-Host "Next steps:"
 Write-Host "  - View logs: docker compose logs -f"
 Write-Host "  - Stop services: docker compose down"
-Write-Host "  - Pull updates: git pull origin $targetBranch and then docker compose --env-file .env exec -T backend bash /var/www/database/migrations/run_sql_migrations.sh"
+if ($targetBranch) {
+    Write-Host "  - Pull updates: git pull origin $targetBranch and then docker compose --env-file .env exec -T backend bash /var/www/database/migrations/run_sql_migrations.sh"
+} else {
+    Write-Host "  - Pull updates: git pull and then docker compose --env-file .env exec -T backend bash /var/www/database/migrations/run_sql_migrations.sh"
+}
 Write-Host "  - See DOCKER.md for detailed documentation"

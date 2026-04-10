@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\ComplaintController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\TenantDocumentController;
 use App\Http\Controllers\Api\TenantPaymentController;
+use App\Http\Controllers\Api\BillServiceChargeController;
 
 /*
 |--------------------------------------------------------------------------
@@ -38,6 +39,7 @@ Route::middleware(['auth:sanctum', 'check.admin'])->group(function () {
     Route::get('/admin/users/assignable-tenants', [UserManagementController::class, 'assignableTenants']);
     Route::get('/admin/users/created-credentials', [UserManagementController::class, 'createdCredentials']);
     Route::post('/admin/users', [UserManagementController::class, 'store']);
+    Route::delete('/admin/users/{userId}', [UserManagementController::class, 'destroy']);
     Route::post('/admin/users/{userId}/reset-credential', [UserManagementController::class, 'resetCredential']);
     Route::post('/admin/tenants/create-with-assignment', [UserManagementController::class, 'createTenantWithAssignment']);
 
@@ -53,6 +55,14 @@ Route::middleware(['auth:sanctum', 'check.admin'])->group(function () {
     Route::get('/admin/tenants/{tenantId}/documents', [TenantDocumentController::class, 'adminIndexByTenant']);
     Route::get('/admin/tenants/{tenantId}/payments', [TenantPaymentController::class, 'adminIndexByTenant']);
     Route::patch('/admin/payments/{paymentId}', [TenantPaymentController::class, 'adminUpdate']);
+    Route::get('/admin/bill-service-charges', [BillServiceChargeController::class, 'index']);
+    Route::post('/admin/bill-service-charge-types', [BillServiceChargeController::class, 'createType']);
+    Route::patch('/admin/bill-service-charge-types/{typeId}', [BillServiceChargeController::class, 'updateType']);
+    Route::delete('/admin/bill-service-charge-types/{typeId}', [BillServiceChargeController::class, 'deleteType']);
+    Route::post('/admin/bill-service-charges', [BillServiceChargeController::class, 'storeConfig']);
+    Route::patch('/admin/bill-service-charges/{configId}', [BillServiceChargeController::class, 'updateConfig']);
+    Route::delete('/admin/bill-service-charges/{configId}', [BillServiceChargeController::class, 'deleteConfig']);
+    Route::post('/admin/bill-service-charges/materialize', [BillServiceChargeController::class, 'materializeMonth']);
     Route::get('/admin/documents/{documentId}/audits', [TenantDocumentController::class, 'adminAuditByDocument']);
     Route::patch('/admin/documents/{documentId}/status', [TenantDocumentController::class, 'adminUpdateStatus']);
     Route::get('/admin/documents/{documentId}/download', [TenantDocumentController::class, 'download']);
