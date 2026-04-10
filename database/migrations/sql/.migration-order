@@ -24,6 +24,8 @@ create_unit_tenant_assignments_table.sql
 create_document_types_table.sql
 create_tenant_documents_table.sql
 create_tenant_payments_table.sql
+create_partial_payments_table.sql
+create_payment_table.sql
 add_service_amount_to_tenant_payments_table.sql
 create_bill_charge_types_table.sql
 create_building_charge_configs_table.sql

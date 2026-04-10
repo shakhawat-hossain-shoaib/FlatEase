@@ -23,6 +23,33 @@ class RedirectIfAuthenticated
 
         foreach ($guards as $guard) {
             if (Auth::guard($guard)->check()) {
+                $isSpaRequest = $request->expectsJson()
+                    || $request->isJson()
+                    || $request->headers->has('Origin');
+
+                if ($isSpaRequest) {
+                    $user = Auth::guard($guard)->user();
+
+                    $redirectPath = '/tenant';
+                    if ($user && $user->role === 'admin') {
+                        $redirectPath = '/admin';
+                    } elseif ($user && $user->role === 'technician') {
+                        $redirectPath = '/technician';
+                    }
+
+                    return response()->json([
+                        'success' => true,
+                        'message' => 'Already signed in.',
+                        'user' => $user ? [
+                            'id' => $user->id,
+                            'name' => $user->name,
+                            'email' => $user->email,
+                            'role' => $user->role,
+                        ] : null,
+                        'redirectPath' => $redirectPath,
+                    ], 200);
+                }
+
                 return redirect(RouteServiceProvider::HOME);
             }
         }
