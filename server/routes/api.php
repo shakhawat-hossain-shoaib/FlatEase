@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\TenantDocumentController;
 use App\Http\Controllers\Api\TenantPaymentController;
 use App\Http\Controllers\Api\BillServiceChargeController;
+use App\Http\Controllers\Api\TenantProfileController;
 
 /*
 |--------------------------------------------------------------------------
@@ -23,7 +24,10 @@ use App\Http\Controllers\Api\BillServiceChargeController;
 */
 
 Route::middleware(['auth:sanctum'])->get('/user', function (Request $request) {
-    return $request->user();
+    return $request->user()->load([
+        'tenantProfile',
+        'unitAssignments.unit.floor.building',
+    ]);
 });
 
 Route::match(['get', 'post'], '/sslcommerz/success', [TenantPaymentController::class, 'sslCommerzSuccess']);
@@ -99,6 +103,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('/tenant/payments/sslcommerz/initiate', [TenantPaymentController::class, 'initiateSslCommerz']);
     Route::post('/tenant/payments/{paymentId}/partial', [TenantPaymentController::class, 'recordPartialPayment']);
     Route::get('/tenant/payments/{paymentId}/partial-history', [TenantPaymentController::class, 'getPartialPayments']);
+    Route::patch('/tenant/profile', [TenantProfileController::class, 'update']);
     Route::get('/tenant/documents/checklist', [TenantDocumentController::class, 'checklist']);
     Route::get('/tenant/documents', [TenantDocumentController::class, 'index']);
     Route::post('/tenant/documents', [TenantDocumentController::class, 'store']);

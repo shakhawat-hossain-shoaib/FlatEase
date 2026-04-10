@@ -38,6 +38,11 @@ export type BasicApiResponse = {
   message: string;
 };
 
+export type TenantProfileUpdatePayload = {
+  phone?: string | null;
+  preferred_contact_method: 'email' | 'sms';
+};
+
 export type AdminCreateUserResponse = {
   success: boolean;
   message: string;
@@ -176,6 +181,7 @@ export type UnitAssignmentEntity = {
   lease_start_date?: string | null;
   lease_end_date?: string | null;
   rent_amount?: string | null;
+  moved_out_at?: string | null;
   tenant?: {
     id: number;
     name: string;
@@ -183,6 +189,16 @@ export type UnitAssignmentEntity = {
     tenant_profile?: TenantProfileEntity;
     tenantProfile?: TenantProfileEntity;
   };
+  unit?: UnitEntity;
+};
+
+export type CurrentUserEntity = UserEntity & {
+  phone?: string | null;
+  preferred_contact_method?: string | null;
+  tenant_profile?: TenantProfileEntity | null;
+  tenantProfile?: TenantProfileEntity | null;
+  unit_assignments?: UnitAssignmentEntity[];
+  unitAssignments?: UnitAssignmentEntity[];
 };
 
 export type UnitEntity = {
@@ -640,6 +656,27 @@ class ApiClient {
     }
   }
 
+  async getCurrentUser(): Promise<CurrentUserEntity | undefined> {
+    try {
+      const response = await this.client.get('/api/user');
+      return response.data;
+    } catch (error) {
+      this.handleError(error);
+      return undefined;
+    }
+  }
+
+  async updateTenantProfile(payload: TenantProfileUpdatePayload): Promise<{ success: boolean; message: string; user: CurrentUserEntity } | undefined> {
+    try {
+      const headers = await this.csrfHeaders();
+      const response = await this.client.patch('/api/tenant/profile', payload, { headers });
+      return response.data;
+    } catch (error) {
+      this.handleError(error);
+      return undefined;
+    }
+  }
+
   async requestPasswordResetOtp(
     identifier: string,
     preferred_contact_method: 'email' | 'sms' = 'email'
@@ -905,6 +942,17 @@ class ApiClient {
       const response = await this.client.get('/api/notifications', {
         params: { per_page: perPage },
       });
+      return response.data;
+    } catch (error) {
+      this.handleError(error);
+      return undefined;
+    }
+  }
+
+  async markNotificationRead(notificationId: string): Promise<AppNotificationEntity | undefined> {
+    try {
+      const headers = await this.csrfHeaders();
+      const response = await this.client.patch(`/api/notifications/${notificationId}/read`, {}, { headers });
       return response.data;
     } catch (error) {
       this.handleError(error);
