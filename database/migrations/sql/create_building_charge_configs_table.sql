@@ -1,0 +1,22 @@
+CREATE TABLE IF NOT EXISTS building_charge_configs (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  building_id BIGINT UNSIGNED NOT NULL,
+  charge_type_id BIGINT UNSIGNED NOT NULL,
+  amount DECIMAL(12,2) NOT NULL DEFAULT 0,
+  recurrence ENUM('monthly', 'one_time') NOT NULL DEFAULT 'monthly',
+  billing_month DATE NULL,
+  effective_from DATE NOT NULL,
+  effective_to DATE NULL,
+  is_active TINYINT(1) NOT NULL DEFAULT 1,
+  notes VARCHAR(255) NULL,
+  created_by BIGINT UNSIGNED NULL,
+  updated_by BIGINT UNSIGNED NULL,
+  created_at TIMESTAMP NULL,
+  updated_at TIMESTAMP NULL,
+  KEY building_charge_configs_building_effective_idx (building_id, effective_from, effective_to),
+  KEY building_charge_configs_building_type_idx (building_id, charge_type_id, is_active),
+  CONSTRAINT building_charge_configs_building_fk FOREIGN KEY (building_id) REFERENCES buildings(id) ON DELETE CASCADE,
+  CONSTRAINT building_charge_configs_type_fk FOREIGN KEY (charge_type_id) REFERENCES bill_charge_types(id) ON DELETE RESTRICT,
+  CONSTRAINT building_charge_configs_created_by_fk FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
+  CONSTRAINT building_charge_configs_updated_by_fk FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

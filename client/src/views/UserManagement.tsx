@@ -170,6 +170,25 @@ export default function UserManagement() {
     setVisiblePasswords((prev) => ({ ...prev, [user.id]: true }));
   };
 
+  const handleDeleteUser = async (user: AdminCreatedUserCredential) => {
+    const confirmDelete = window.confirm(`Delete tenant account ${user.id} permanently?`);
+    if (!confirmDelete) {
+      return;
+    }
+
+    setResettingUserId(user.id);
+    const response = await api.deleteAdminUser(user.id);
+    setResettingUserId(null);
+
+    if (!response?.success) {
+      toast.error(response?.message ?? 'Failed to delete tenant account');
+      return;
+    }
+
+    toast.success(response.message);
+    await loadCreatedUsers();
+  };
+
   return (
     <DashboardLayout role="Admin">
       <div style={{ background: '#e8f0ff', minHeight: '100vh' }}>
@@ -191,7 +210,7 @@ export default function UserManagement() {
           <Card className="border-0 shadow-sm">
             <Card.Body>
               <div className="d-flex align-items-center justify-content-between mb-3">
-                <h5 className="mb-0">Created User Credentials</h5>
+                <h5 className="mb-0">Tenant Account Credentials</h5>
                 <Button variant="outline-primary" size="sm" onClick={() => void loadCreatedUsers()} disabled={isLoadingCreatedUsers}>
                   {isLoadingCreatedUsers ? 'Refreshing...' : 'Refresh'}
                 </Button>
@@ -211,7 +230,6 @@ export default function UserManagement() {
                       <th>User ID</th>
                       <th>Name</th>
                       <th>Email</th>
-                      <th>Role</th>
                       <th>Password</th>
                       <th>Action</th>
                     </tr>
@@ -227,15 +245,9 @@ export default function UserManagement() {
                           <td>{user.id}</td>
                           <td>{user.name}</td>
                           <td>{user.email}</td>
-                          <td className="text-capitalize">{user.role}</td>
                           <td>
                             <div>
                               {isVisible ? rawPassword : hiddenPassword}
-                              {process.env.NODE_ENV === 'development' && (
-                                <div style={{ fontSize: '0.75rem', color: '#999', marginTop: '4px' }}>
-                                  [DB: {user.debug_has_credential_id ? 'Y' : 'N'} | CT: {user.debug_has_ciphertext ? 'Y' : 'N'}]
-                                </div>
-                              )}
                             </div>
                           </td>
                           <td>
@@ -257,6 +269,14 @@ export default function UserManagement() {
                                 onClick={() => user.password && copyToClipboard(user.password)}
                               >
                                 <BsClipboard />
+                              </Button>
+                              <Button
+                                variant="outline-danger"
+                                size="sm"
+                                disabled={resettingUserId === user.id}
+                                onClick={() => void handleDeleteUser(user)}
+                              >
+                                Delete
                               </Button>
                               {!user.password && (
                                 <Button

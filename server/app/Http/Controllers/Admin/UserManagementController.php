@@ -34,7 +34,7 @@ class UserManagementController extends Controller
                 'auc.created_at as credential_created_at',
                 'creator.name as created_by_name',
             ])
-            ->whereIn('u.role', ['tenant', 'technician', 'admin'])
+            ->where('u.role', 'tenant')
             ->orderByDesc('u.id')
             ->get();
 
@@ -59,13 +59,7 @@ class UserManagementController extends Controller
                 'id' => (int) $row->id,
                 'name' => (string) $row->name,
                 'email' => (string) $row->email,
-                'role' => (string) $row->role,
                 'password' => $password,
-                'created_at' => $row->created_at,
-                'credential_created_at' => $row->credential_created_at,
-                'created_by_name' => $row->created_by_name,
-                'debug_has_credential_id' => (int) $row->credential_id > 0,
-                'debug_has_ciphertext' => $hasCiphertext,
             ];
         })->values();
 
@@ -311,6 +305,66 @@ class UserManagementController extends Controller
                 'role' => (string) $user->role,
                 'password' => $plainPassword,
             ],
+        ], 200);
+    }
+
+    public function destroy(Request $request, int $userId)
+    {
+        if ((string) optional($request->user())->role !== 'admin') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Forbidden. Admin access required.',
+            ], 403);
+        }
+
+        $user = User::query()
+            ->where('role', 'tenant')
+            ->with(['unitAssignments.unit'])
+            ->find($userId);
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Tenant not found.',
+            ], 404);
+        }
+
+        try {
+            DB::transaction(function () use ($user) {
+                $activeAssignments = $user->unitAssignments()->where('status', 'active')->with('unit')->get();
+
+                $activeAssignments->each(function (UnitTenantAssignment $assignment) {
+                    $assignment->status = 'terminated';
+                    $assignment->moved_out_at = now();
+                    $assignment->save();
+
+                    if ($assignment->unit) {
+                        $assignment->unit->occupancy_status = 'vacant';
+                        $assignment->unit->save();
+                    }
+                });
+
+                TenantProfile::where('user_id', $user->id)->delete();
+                $user->delete();
+            });
+        } catch (
+            \Throwable $exception
+        ) {
+            Log::error('TENANT_DELETE_FAILED', [
+                'user_id' => $userId,
+                'error' => $exception->getMessage(),
+                'exception_type' => get_class($exception),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to delete tenant account.',
+            ], 500);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Tenant account deleted successfully.',
         ], 200);
     }
 

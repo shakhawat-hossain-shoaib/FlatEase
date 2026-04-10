@@ -270,7 +270,15 @@ export default function TenantPaymentsPage() {
                             <tr key={charge.key}>
                               <td>{charge.label}</td>
                               <td>
-                                <Badge bg={charge.category === 'rent' ? 'primary' : 'secondary'}>
+                                <Badge
+                                  bg={
+                                    charge.category === 'rent'
+                                      ? 'primary'
+                                      : charge.category === 'service'
+                                      ? 'info'
+                                      : 'secondary'
+                                  }
+                                >
                                   {charge.category}
                                 </Badge>
                               </td>
@@ -294,6 +302,10 @@ export default function TenantPaymentsPage() {
                       <div className="d-flex justify-content-between mb-2">
                         <span className="text-muted">Utility</span>
                         <span>{formatMoney(summary.subtotal_utility, summary.currency)}</span>
+                      </div>
+                      <div className="d-flex justify-content-between mb-2">
+                        <span className="text-muted">Service Charge</span>
+                        <span>{formatMoney(summary.subtotal_service ?? 0, summary.currency)}</span>
                       </div>
                       <hr />
                       <div className="d-flex justify-content-between fw-bold mb-3">

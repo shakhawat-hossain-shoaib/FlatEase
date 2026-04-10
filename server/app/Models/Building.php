@@ -35,4 +35,14 @@ class Building extends Model
     {
         return $this->hasMany(Unit::class);
     }
+
+    public function chargeTypes()
+    {
+        return $this->hasMany(BillChargeType::class);
+    }
+
+    public function chargeConfigs()
+    {
+        return $this->hasMany(BuildingChargeConfig::class);
+    }
 }
