@@ -7,15 +7,22 @@ import Register from './views/Register';
 import ForgotPassword from './views/ForgotPassword';
 import OtpVerification from './views/OtpVerification';
 import AdminDashboard from './views/AdminDashboard';
-import TenantDashboard from './views/TenantDashboard';
 import ApartmentManagement from './views/ApartmentManagement';
 import UserManagement from './views/UserManagement';
 import ComplaintsPage from './views/ComplaintsPage';
 import DocumentsPage from './views/DocumentsPage';
 import TechnicianDashboard from './views/TechnicianDashboard';
-import TenantPaymentsPage from './views/TenantPaymentsPage';
 import AdminPaymentsPage from './views/AdminPaymentsPage';
 import BillServiceChargePage from './views/BillServiceChargePage';
+import TenantDashboard from './tenant/pages/TenantDashboard';
+import MyLease from './tenant/pages/MyLease';
+import Payments from './tenant/pages/Payments';
+import MyComplaints from './tenant/pages/MyComplaints';
+import SubmitComplaint from './tenant/pages/SubmitComplaint';
+import MyDocuments from './tenant/pages/MyDocuments';
+import Profile from './tenant/pages/Profile';
+import Settings from './tenant/pages/Settings';
+import Notifications from './tenant/pages/Notifications';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './index.css';
 import { Toaster } from 'react-hot-toast';
@@ -155,13 +162,20 @@ function App() {
               </RoleGuard>
             }
           />
-          <Route path="/tenant/lease" element={<Navigate to="/tenant" replace />} />
-          <Route path="/tenant/lease/:id" element={<Navigate to="/tenant" replace />} />
+          <Route
+            path="/tenant/lease"
+            element={
+              <RoleGuard role="tenant">
+                <MyLease />
+              </RoleGuard>
+            }
+          />
+          <Route path="/tenant/lease/:id" element={<Navigate to="/tenant/lease" replace />} />
           <Route
             path="/tenant/documents"
             element={
               <RoleGuard role="tenant">
-                <DocumentsPage />
+                <MyDocuments />
               </RoleGuard>
             }
           />
@@ -169,7 +183,15 @@ function App() {
             path="/tenant/payments"
             element={
               <RoleGuard role="tenant">
-                <TenantPaymentsPage />
+                <Payments />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="/tenant/complaints/new"
+            element={
+              <RoleGuard role="tenant">
+                <SubmitComplaint />
               </RoleGuard>
             }
           />
@@ -177,7 +199,31 @@ function App() {
             path="/tenant/complaints"
             element={
               <RoleGuard role="tenant">
-                <ComplaintsPage role="Tenant" />
+                <MyComplaints />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="/tenant/profile"
+            element={
+              <RoleGuard role="tenant">
+                <Profile />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="/tenant/settings"
+            element={
+              <RoleGuard role="tenant">
+                <Settings />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="/tenant/notifications"
+            element={
+              <RoleGuard role="tenant">
+                <Notifications />
               </RoleGuard>
             }
           />
