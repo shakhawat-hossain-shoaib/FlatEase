@@ -515,6 +515,12 @@ class TenantPaymentController extends Controller
             ], 422);
         }
 
+        if (empty($complaint->assigned_by_id)) {
+            return response()->json([
+                'error' => 'Technician payment is only allowed for admin-assigned complaints.',
+            ], 422);
+        }
+
         $buildingId = $this->resolveTenantBuildingId((int) $user->id);
 
         if (!$buildingId) {

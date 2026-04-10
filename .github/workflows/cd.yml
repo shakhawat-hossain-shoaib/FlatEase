@@ -1,0 +1,36 @@
+name: CD
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    name: Deploy to Server
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ secrets.DEPLOY_PORT || 22 }}
+          script_stop: true
+          script: |
+            set -e
+            if [ ! -d "${{ secrets.DEPLOY_PATH }}/.git" ]; then
+              mkdir -p "${{ secrets.DEPLOY_PATH }}"
+              git clone https://github.com/${{ github.repository }}.git "${{ secrets.DEPLOY_PATH }}"
+            fi
+
+            cd "${{ secrets.DEPLOY_PATH }}"
+            git checkout main
+            git pull --ff-only origin main
+
+            docker compose up -d --build
+            docker compose exec -T backend bash /var/www/database/migrations/run_sql_migrations.sh
+            docker compose exec -T backend php artisan optimize:clear

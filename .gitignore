@@ -20,3 +20,10 @@
 **/.idea
 **/.vscode
 **/*.sqlite
+
+# Local runtime data and logs
+mysql-data/
+*.pid
+*.err
+*.out
+*.log

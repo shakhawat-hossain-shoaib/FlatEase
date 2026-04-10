@@ -147,3 +147,29 @@ This project solves a real operational problem faced by most apartment buildings
 ##  License
 
 This project is developed for academic purposes.
+
+---
+
+## CI/CD
+
+This repository now includes GitHub Actions workflows:
+
+- CI workflow: `.github/workflows/ci.yml`
+  - Frontend lint and build (`client`)
+  - Backend composer validation and PHP syntax checks (`server`)
+  - Docker Compose configuration validation
+
+- CD workflow: `.github/workflows/cd.yml`
+  - Runs on pushes to `main` (and manually via workflow dispatch)
+  - Deploys to your server over SSH
+  - Pulls latest `main`, runs `docker compose up -d --build`, then applies SQL migrations
+
+### Required GitHub Secrets for CD
+
+Set these in: Repository Settings -> Secrets and variables -> Actions
+
+- `DEPLOY_HOST`: deployment server hostname or IP
+- `DEPLOY_USER`: SSH username on deployment server
+- `DEPLOY_SSH_KEY`: private SSH key with access to deployment server
+- `DEPLOY_PORT`: SSH port (optional, defaults to `22`)
+- `DEPLOY_PATH`: absolute path on server where the repo is/will be cloned
