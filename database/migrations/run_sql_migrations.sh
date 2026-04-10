@@ -18,6 +18,7 @@ MYSQL_ARGS=("-h${DB_HOST}" "-P${DB_PORT}" "-u${DB_USER}" "--default-character-se
 if [ -n "$DB_PASS" ]; then
   MYSQL_ARGS+=("-p${DB_PASS}")
 fi
+MYSQL_ARGS+=("--skip-ssl")
 
 mysql "${MYSQL_ARGS[@]}" -e "CREATE DATABASE IF NOT EXISTS \`${DB_NAME}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 

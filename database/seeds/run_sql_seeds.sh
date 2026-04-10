@@ -18,6 +18,7 @@ if [ -n "$DB_PASS" ]; then
   MYSQL_ARGS+=("-p${DB_PASS}")
 fi
 
+MYSQL_ARGS+=("--skip-ssl")
 mysql "${MYSQL_ARGS[@]}" "$DB_NAME" <<'SQL'
 CREATE TABLE IF NOT EXISTS schema_sql_seeds (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,

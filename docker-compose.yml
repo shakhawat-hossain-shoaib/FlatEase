@@ -67,7 +67,7 @@ services:
     env_file:
       - .env
     environment:
-      VITE_BACKEND_ENDPOINT: ${VITE_BACKEND_ENDPOINT:-http://localhost:8000/api}
+      VITE_BACKEND_ENDPOINT: ${VITE_BACKEND_ENDPOINT:-http://localhost:8000}
     ports:
       - "${FRONTEND_PORT:-5173}:5173"
     networks:
