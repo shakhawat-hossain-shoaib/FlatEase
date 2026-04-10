@@ -475,6 +475,73 @@ export type TenantSslCommerzInitResponse = {
   gateway_url: string;
 };
 
+export type TechnicianPaymentStatus = 'pending' | 'successful' | 'failed' | 'cancelled';
+
+export type ComplaintTechnicianPaymentEntity = {
+  id: number;
+  complaint_id: number;
+  complaint_title: string;
+  complaint_status: ComplaintStatus;
+  tenant_name: string;
+  technician_id: number;
+  technician_name: string;
+  building_id: number;
+  building_name: string;
+  amount: number;
+  currency: string;
+  status: TechnicianPaymentStatus;
+  payment_method?: string;
+  transaction_ref?: string;
+  failure_reason?: string;
+  paid_at?: string | null;
+  created_at?: string;
+  updated_at?: string;
+  can_pay: boolean;
+};
+
+export type TenantComplaintPaymentsResponse = {
+  currency: string;
+  payments: ComplaintTechnicianPaymentEntity[];
+};
+
+export type TenantTechnicianPaymentInitResponse = {
+  success: boolean;
+  technician_payment_id: number;
+  complaint_id: number;
+  transaction_id: string;
+  gateway_url: string;
+};
+
+export type TechnicianEarningsSummary = {
+  currency: string;
+  total_earned: number;
+  pending_amount: number;
+  successful_count: number;
+  pending_count: number;
+  failed_count: number;
+};
+
+export type TechnicianEarningsPayment = {
+  id: number;
+  complaint_id: number;
+  complaint_title: string;
+  complaint_status: ComplaintStatus;
+  tenant_name: string;
+  tenant_email: string;
+  building_name: string;
+  amount: number;
+  currency: string;
+  status: TechnicianPaymentStatus;
+  transaction_ref: string;
+  paid_at?: string | null;
+  created_at?: string;
+};
+
+export type TechnicianEarningsResponse = {
+  summary: TechnicianEarningsSummary;
+  payments: TechnicianEarningsPayment[];
+};
+
 export type AdminDashboardStats = {
   total_tenants: number;
   active_leases: number;
@@ -1323,6 +1390,44 @@ class ApiClient {
         payload.custom_amount = customAmount;
       }
       const response = await this.client.post('/api/tenant/payments/sslcommerz/initiate', payload, { headers });
+      return response.data;
+    } catch (error) {
+      this.handleError(error);
+      return undefined;
+    }
+  }
+
+  async getTenantComplaintPayments(): Promise<TenantComplaintPaymentsResponse | undefined> {
+    try {
+      const response = await this.client.get('/api/tenant/complaint-payments');
+      return response.data;
+    } catch (error) {
+      this.handleError(error);
+      return undefined;
+    }
+  }
+
+  async initiateTenantTechnicianPayment(
+    complaintId: number,
+    amount: number
+  ): Promise<TenantTechnicianPaymentInitResponse | undefined> {
+    try {
+      const headers = await this.csrfHeaders();
+      const response = await this.client.post(
+        `/api/tenant/complaints/${complaintId}/payments/sslcommerz/initiate`,
+        { amount },
+        { headers }
+      );
+      return response.data;
+    } catch (error) {
+      this.handleError(error);
+      return undefined;
+    }
+  }
+
+  async getTechnicianEarnings(): Promise<TechnicianEarningsResponse | undefined> {
+    try {
+      const response = await this.client.get('/api/technician/payments');
       return response.data;
     } catch (error) {
       this.handleError(error);

@@ -96,11 +96,14 @@ Route::middleware(['auth:sanctum', 'check.admin'])->group(function () {
 Route::middleware(['auth:sanctum', 'check.technician'])->group(function () {
     Route::get('/technician/complaints', [ComplaintController::class, 'technicianIndex']);
     Route::patch('/technician/complaints/{id}/status', [ComplaintController::class, 'technicianUpdateStatus']);
+    Route::get('/technician/payments', [TenantPaymentController::class, 'technicianEarnings']);
 });
 
 Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/tenant/payments/current-summary', [TenantPaymentController::class, 'currentSummary']);
     Route::post('/tenant/payments/sslcommerz/initiate', [TenantPaymentController::class, 'initiateSslCommerz']);
+    Route::get('/tenant/complaint-payments', [TenantPaymentController::class, 'tenantComplaintPayments']);
+    Route::post('/tenant/complaints/{complaintId}/payments/sslcommerz/initiate', [TenantPaymentController::class, 'initiateTechnicianSslCommerz']);
     Route::post('/tenant/payments/{paymentId}/partial', [TenantPaymentController::class, 'recordPartialPayment']);
     Route::get('/tenant/payments/{paymentId}/partial-history', [TenantPaymentController::class, 'getPartialPayments']);
     Route::patch('/tenant/profile', [TenantProfileController::class, 'update']);

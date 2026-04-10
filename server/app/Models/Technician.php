@@ -35,4 +35,9 @@ class Technician extends Model
             ->withPivot(['assigned_by_admin_id', 'assigned_at', 'assignment_note', 'is_primary'])
             ->withTimestamps();
     }
+
+    public function payments()
+    {
+        return $this->hasMany(TechnicianPayment::class, 'technician_user_id', 'user_id');
+    }
 }

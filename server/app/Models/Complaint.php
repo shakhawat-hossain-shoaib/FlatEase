@@ -67,4 +67,9 @@ class Complaint extends Model
     {
         return $this->hasMany(ComplaintAssignmentHistory::class);
     }
+
+    public function technicianPayments()
+    {
+        return $this->hasMany(TechnicianPayment::class, 'complaint_id');
+    }
 }

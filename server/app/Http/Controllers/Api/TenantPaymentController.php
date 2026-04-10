@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Complaint;
 use App\Models\Payment;
 use App\Models\TenantPayment;
+use App\Models\TechnicianPayment;
 use App\Models\PartialPayment;
 use App\Models\UnitTenantAssignment;
 use App\Services\BillingChargeService;
@@ -431,8 +433,282 @@ class TenantPaymentController extends Controller
         ], 200);
     }
 
+    public function tenantComplaintPayments(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        if ((string) $user->role !== 'tenant') {
+            return response()->json(['error' => 'Forbidden. Tenant access required.'], 403);
+        }
+
+        $payments = TechnicianPayment::query()
+            ->with([
+                'complaint:id,title,status,resolved_at',
+                'tenant:id,name,email',
+                'technician:id,name,email',
+                'building:id,name',
+            ])
+            ->where('tenant_user_id', (int) $user->id)
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->get();
+
+        return response()->json([
+            'currency' => 'BDT',
+            'payments' => $payments->map(function (TechnicianPayment $payment) {
+                $complaintStatus = (string) optional($payment->complaint)->status;
+                return [
+                    'id' => (int) $payment->id,
+                    'complaint_id' => (int) $payment->complaint_id,
+                    'complaint_title' => (string) optional($payment->complaint)->title,
+                    'complaint_status' => $complaintStatus,
+                    'tenant_name' => (string) optional($payment->tenant)->name,
+                    'technician_id' => (int) $payment->technician_user_id,
+                    'technician_name' => (string) optional($payment->technician)->name,
+                    'building_id' => (int) $payment->building_id,
+                    'building_name' => (string) optional($payment->building)->name,
+                    'amount' => round((float) $payment->amount, 2),
+                    'currency' => (string) $payment->currency,
+                    'status' => (string) $payment->status,
+                    'payment_method' => (string) ($payment->payment_method ?? ''),
+                    'transaction_ref' => (string) ($payment->transaction_ref ?? ''),
+                    'failure_reason' => (string) ($payment->failure_reason ?? ''),
+                    'paid_at' => optional($payment->paid_at)->toISOString(),
+                    'created_at' => optional($payment->created_at)->toISOString(),
+                    'updated_at' => optional($payment->updated_at)->toISOString(),
+                    'can_pay' => $complaintStatus === 'resolved' && (string) $payment->status !== 'successful',
+                ];
+            })->values(),
+        ], 200);
+    }
+
+    public function initiateTechnicianSslCommerz(Request $request, int $complaintId): JsonResponse
+    {
+        $user = $request->user();
+
+        if ((string) $user->role !== 'tenant') {
+            return response()->json(['error' => 'Forbidden. Tenant access required.'], 403);
+        }
+
+        $validated = $request->validate([
+            'amount' => 'required|numeric|min:1|max:1000000',
+        ]);
+
+        $complaint = Complaint::query()
+            ->where('id', $complaintId)
+            ->where('tenant_id', (int) $user->id)
+            ->first();
+
+        if (!$complaint) {
+            return response()->json(['error' => 'Complaint not found for this tenant.'], 404);
+        }
+
+        if ((string) $complaint->status !== 'resolved') {
+            return response()->json([
+                'error' => 'Technician payment is available only when a complaint is resolved.',
+            ], 422);
+        }
+
+        if (empty($complaint->assigned_technician_id)) {
+            return response()->json([
+                'error' => 'No technician is assigned to this complaint.',
+            ], 422);
+        }
+
+        $buildingId = $this->resolveTenantBuildingId((int) $user->id);
+
+        if (!$buildingId) {
+            return response()->json([
+                'error' => 'Unable to resolve tenant building. Please contact support.',
+            ], 422);
+        }
+
+        $existingSuccessful = TechnicianPayment::query()
+            ->where('complaint_id', (int) $complaint->id)
+            ->where('tenant_user_id', (int) $user->id)
+            ->where('status', 'successful')
+            ->exists();
+
+        if ($existingSuccessful) {
+            return response()->json([
+                'error' => 'Technician payment for this complaint is already completed.',
+            ], 422);
+        }
+
+        $credentials = config('sslcommerz.apiCredentials', []);
+        $storeId = (string) Arr::get($credentials, 'store_id', '');
+        $storePassword = (string) Arr::get($credentials, 'store_password', '');
+
+        if ($storeId === '' || $storePassword === '') {
+            return response()->json(['error' => 'Payment gateway credentials are not configured.'], 500);
+        }
+
+        $amount = round((float) $validated['amount'], 2);
+        $payment = TechnicianPayment::create([
+            'complaint_id' => (int) $complaint->id,
+            'tenant_user_id' => (int) $user->id,
+            'technician_user_id' => (int) $complaint->assigned_technician_id,
+            'building_id' => $buildingId,
+            'amount' => $amount,
+            'currency' => 'BDT',
+            'status' => 'pending',
+            'payment_method' => 'sslcommerz',
+        ]);
+
+        $appUrl = rtrim((string) config('app.url'), '/');
+        $frontendUrl = rtrim((string) env('FRONTEND_URL', $appUrl), '/');
+        $tranId = sprintf('TECHPAY-%d-%s', (int) $payment->id, Str::upper(Str::random(10)));
+
+        $payment->transaction_ref = $tranId;
+        $payment->save();
+
+        $payload = [
+            'store_id' => $storeId,
+            'store_passwd' => $storePassword,
+            'total_amount' => $amount,
+            'currency' => 'BDT',
+            'tran_id' => $tranId,
+            'success_url' => $appUrl . '/api/sslcommerz/success',
+            'fail_url' => $appUrl . '/api/sslcommerz/fail',
+            'cancel_url' => $appUrl . '/api/sslcommerz/cancel',
+            'ipn_url' => $appUrl . '/api/sslcommerz/ipn',
+            'cus_name' => (string) $user->name,
+            'cus_email' => (string) $user->email,
+            'cus_add1' => 'N/A',
+            'cus_city' => 'Dhaka',
+            'cus_country' => 'Bangladesh',
+            'cus_phone' => (string) (optional($user->tenantProfile)->phone ?? 'N/A'),
+            'shipping_method' => 'NO',
+            'product_name' => 'Technician Payment - ' . Str::limit((string) $complaint->title, 80, ''),
+            'product_category' => 'Complaint Service',
+            'product_profile' => 'general',
+            'num_of_item' => 1,
+            'value_a' => (string) $payment->id,
+            'value_b' => (string) $user->id,
+            'value_c' => $frontendUrl,
+            'value_d' => 'technician',
+        ];
+
+        $this->upsertGatewayPayment(
+            $tranId,
+            (string) $user->name,
+            (string) $user->email,
+            (string) (optional($user->tenantProfile)->phone ?? ''),
+            $amount,
+            'pending',
+            'N/A',
+            'BDT'
+        );
+
+        $makePaymentPath = (string) Arr::get(config('sslcommerz.apiUrl', []), 'make_payment', '/gwprocess/v4/api.php');
+        $gatewayEndpoint = rtrim((string) config('sslcommerz.apiDomain'), '/') . '/' . ltrim($makePaymentPath, '/');
+
+        try {
+            $response = Http::asForm()->timeout(30)->post($gatewayEndpoint, $payload);
+        } catch (\Throwable $exception) {
+            $payment->status = 'failed';
+            $payment->failure_reason = 'Gateway connection failed.';
+            $payment->save();
+
+            Log::error('SSLCommerz initiate request failed for technician payment', [
+                'technician_payment_id' => (int) $payment->id,
+                'transaction_ref' => $tranId,
+                'error' => $exception->getMessage(),
+            ]);
+
+            return response()->json(['error' => 'Failed to connect to payment gateway.'], 502);
+        }
+
+        $result = $response->json() ?? [];
+        $gatewayUrl = (string) Arr::get($result, 'GatewayPageURL', '');
+        $gatewayStatus = strtoupper((string) Arr::get($result, 'status', ''));
+
+        if (!$response->successful() || $gatewayUrl === '' || !in_array($gatewayStatus, ['SUCCESS', 'SUCCESSFUL'], true)) {
+            $payment->status = 'failed';
+            $payment->failure_reason = (string) Arr::get($result, 'failedreason', 'Unable to initialize payment gateway.');
+            $payment->save();
+
+            Log::warning('SSLCommerz initiate response invalid for technician payment', [
+                'technician_payment_id' => (int) $payment->id,
+                'transaction_ref' => $tranId,
+                'status' => Arr::get($result, 'status'),
+                'failedreason' => Arr::get($result, 'failedreason'),
+                'response_code' => $response->status(),
+            ]);
+
+            return response()->json([
+                'error' => (string) Arr::get($result, 'failedreason', 'Unable to initialize payment gateway.'),
+            ], 502);
+        }
+
+        return response()->json([
+            'success' => true,
+            'technician_payment_id' => (int) $payment->id,
+            'complaint_id' => (int) $complaint->id,
+            'transaction_id' => $tranId,
+            'gateway_url' => $gatewayUrl,
+        ], 200);
+    }
+
+    public function technicianEarnings(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        if ((string) $user->role !== 'technician') {
+            return response()->json(['error' => 'Forbidden. Technician access required.'], 403);
+        }
+
+        $payments = TechnicianPayment::query()
+            ->with([
+                'tenant:id,name,email',
+                'complaint:id,title,status,resolved_at',
+                'building:id,name',
+            ])
+            ->where('technician_user_id', (int) $user->id)
+            ->orderByDesc('paid_at')
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->limit(100)
+            ->get();
+
+        $successfulTotal = round((float) $payments->where('status', 'successful')->sum('amount'), 2);
+        $pendingTotal = round((float) $payments->where('status', 'pending')->sum('amount'), 2);
+
+        return response()->json([
+            'summary' => [
+                'currency' => 'BDT',
+                'total_earned' => $successfulTotal,
+                'pending_amount' => $pendingTotal,
+                'successful_count' => (int) $payments->where('status', 'successful')->count(),
+                'pending_count' => (int) $payments->where('status', 'pending')->count(),
+                'failed_count' => (int) $payments->where('status', 'failed')->count(),
+            ],
+            'payments' => $payments->map(function (TechnicianPayment $payment) {
+                return [
+                    'id' => (int) $payment->id,
+                    'complaint_id' => (int) $payment->complaint_id,
+                    'complaint_title' => (string) optional($payment->complaint)->title,
+                    'complaint_status' => (string) optional($payment->complaint)->status,
+                    'tenant_name' => (string) optional($payment->tenant)->name,
+                    'tenant_email' => (string) optional($payment->tenant)->email,
+                    'building_name' => (string) optional($payment->building)->name,
+                    'amount' => round((float) $payment->amount, 2),
+                    'currency' => (string) $payment->currency,
+                    'status' => (string) $payment->status,
+                    'transaction_ref' => (string) ($payment->transaction_ref ?? ''),
+                    'paid_at' => optional($payment->paid_at)->toISOString(),
+                    'created_at' => optional($payment->created_at)->toISOString(),
+                ];
+            })->values(),
+        ], 200);
+    }
+
     public function sslCommerzSuccess(Request $request): JsonResponse|RedirectResponse
     {
+        if ($this->resolvePaymentScope($request) === 'technician') {
+            return $this->handleTechnicianGatewaySuccess($request);
+        }
+
         $payment = $this->resolveCallbackPayment($request);
         $amount = (float) $request->input('amount', 0);
         $tranId = (string) $request->input('tran_id', '');
@@ -469,6 +745,10 @@ class TenantPaymentController extends Controller
 
     public function sslCommerzFail(Request $request): JsonResponse|RedirectResponse
     {
+        if ($this->resolvePaymentScope($request) === 'technician') {
+            return $this->handleTechnicianGatewayFailure($request, 'failed');
+        }
+
         $payment = $this->resolveCallbackPayment($request);
         $tranId = (string) $request->input('tran_id', '');
 
@@ -494,6 +774,10 @@ class TenantPaymentController extends Controller
 
     public function sslCommerzCancel(Request $request): JsonResponse|RedirectResponse
     {
+        if ($this->resolvePaymentScope($request) === 'technician') {
+            return $this->handleTechnicianGatewayFailure($request, 'cancelled');
+        }
+
         $payment = $this->resolveCallbackPayment($request);
         $tranId = (string) $request->input('tran_id', '');
 
@@ -519,6 +803,10 @@ class TenantPaymentController extends Controller
 
     public function sslCommerzIpn(Request $request): JsonResponse
     {
+        if ($this->resolvePaymentScope($request) === 'technician') {
+            return $this->handleTechnicianGatewayIpn($request);
+        }
+
         $status = strtoupper((string) $request->input('status', ''));
         $tranId = (string) $request->input('tran_id', '');
 
@@ -588,6 +876,28 @@ class TenantPaymentController extends Controller
         return null;
     }
 
+    private function resolveTechnicianCallbackPayment(Request $request): ?TechnicianPayment
+    {
+        $tranId = (string) $request->input('tran_id', '');
+        $paymentId = (int) $request->input('value_a', 0);
+
+        if ($tranId !== '') {
+            $payment = TechnicianPayment::query()
+                ->where('transaction_ref', $tranId)
+                ->first();
+
+            if ($payment) {
+                return $payment;
+            }
+        }
+
+        if ($paymentId > 0) {
+            return TechnicianPayment::find($paymentId);
+        }
+
+        return null;
+    }
+
     private function upsertGatewayPayment(
         string $transactionId,
         string $name,
@@ -616,7 +926,7 @@ class TenantPaymentController extends Controller
         );
     }
 
-    private function redirectGatewayResult(string $status, Request $request): JsonResponse|RedirectResponse
+    private function redirectGatewayResult(string $status, Request $request, array $extraQuery = []): JsonResponse|RedirectResponse
     {
         $frontendUrl = rtrim((string) env('FRONTEND_URL', config('app.url')), '/');
         $tranId = (string) $request->input('tran_id', '');
@@ -631,17 +941,255 @@ class TenantPaymentController extends Controller
             $redirectUrl .= '&amount=' . urlencode($amount);
         }
 
+        foreach ($extraQuery as $key => $value) {
+            if ($value === null || $value === '') {
+                continue;
+            }
+
+            $redirectUrl .= '&' . urlencode((string) $key) . '=' . urlencode((string) $value);
+        }
+
         if ($request->expectsJson()) {
             return response()->json([
                 'status' => $status,
                 'message' => 'SSLCommerz payment ' . $status . '.',
                 'transaction_id' => $tranId,
                 'amount' => $amount,
+                'scope' => Arr::get($extraQuery, 'payment_scope'),
                 'redirect_url' => $redirectUrl,
             ], 200);
         }
 
         return redirect()->away($redirectUrl);
+    }
+
+    private function resolvePaymentScope(Request $request): string
+    {
+        $explicitScope = strtolower((string) $request->input('value_d', ''));
+        if ($explicitScope === 'technician') {
+            return 'technician';
+        }
+
+        $tranId = strtoupper((string) $request->input('tran_id', ''));
+        if (Str::startsWith($tranId, 'TECHPAY-')) {
+            return 'technician';
+        }
+
+        return 'tenant';
+    }
+
+    private function resolveTenantBuildingId(int $tenantUserId): ?int
+    {
+        $assignment = UnitTenantAssignment::query()
+            ->with('unit:id,building_id')
+            ->where('tenant_user_id', $tenantUserId)
+            ->orderByRaw("CASE WHEN status = 'active' THEN 0 ELSE 1 END")
+            ->orderByDesc('id')
+            ->first();
+
+        $buildingId = (int) optional($assignment?->unit)->building_id;
+
+        return $buildingId > 0 ? $buildingId : null;
+    }
+
+    private function validateGatewayCallback(Request $request): bool
+    {
+        $valId = (string) $request->input('val_id', '');
+        $tranId = (string) $request->input('tran_id', '');
+
+        if ($valId === '' || $tranId === '') {
+            return false;
+        }
+
+        $credentials = config('sslcommerz.apiCredentials', []);
+        $storeId = (string) Arr::get($credentials, 'store_id', '');
+        $storePassword = (string) Arr::get($credentials, 'store_password', '');
+
+        if ($storeId === '' || $storePassword === '') {
+            return false;
+        }
+
+        $validationPath = (string) Arr::get(config('sslcommerz.apiUrl', []), 'order_validate', '/validator/api/validationserverAPI.php');
+        $validationEndpoint = rtrim((string) config('sslcommerz.apiDomain'), '/') . '/' . ltrim($validationPath, '/');
+
+        try {
+            $response = Http::timeout(20)->get($validationEndpoint, [
+                'val_id' => $valId,
+                'store_id' => $storeId,
+                'store_passwd' => $storePassword,
+                'format' => 'json',
+                'v' => 1,
+            ]);
+        } catch (\Throwable $exception) {
+            Log::warning('SSLCommerz validation API call failed.', [
+                'tran_id' => $tranId,
+                'error' => $exception->getMessage(),
+            ]);
+            return false;
+        }
+
+        if (!$response->successful()) {
+            return false;
+        }
+
+        $result = $response->json() ?? [];
+        $validatedStatus = strtoupper((string) Arr::get($result, 'status', ''));
+        $validatedTranId = (string) Arr::get($result, 'tran_id', '');
+
+        return in_array($validatedStatus, ['VALID', 'VALIDATED'], true)
+            && $validatedTranId !== ''
+            && hash_equals($validatedTranId, $tranId);
+    }
+
+    private function handleTechnicianGatewaySuccess(Request $request): JsonResponse|RedirectResponse
+    {
+        $payment = $this->resolveTechnicianCallbackPayment($request);
+        $tranId = (string) $request->input('tran_id', '');
+
+        if (!$payment) {
+            return $this->redirectGatewayResult('failed', $request, [
+                'payment_scope' => 'technician',
+            ]);
+        }
+
+        if (!$this->validateGatewayCallback($request)) {
+            $payment->status = 'failed';
+            $payment->failure_reason = 'Callback validation failed.';
+            $payment->callback_payload = $request->all();
+            $payment->save();
+
+            return $this->redirectGatewayResult('failed', $request, [
+                'payment_scope' => 'technician',
+                'complaint_id' => (int) $payment->complaint_id,
+                'technician_payment_id' => (int) $payment->id,
+            ]);
+        }
+
+        if ((string) $payment->status !== 'successful') {
+            $amount = (float) $request->input('amount', (float) $payment->amount);
+            $payment->amount = round($amount > 0 ? $amount : (float) $payment->amount, 2);
+            $payment->status = 'successful';
+            $payment->payment_method = 'sslcommerz';
+            $payment->failure_reason = null;
+            $payment->transaction_ref = (string) $request->input('tran_id', $payment->transaction_ref);
+            $payment->paid_at = now();
+            $payment->validated_at = now();
+            $payment->callback_payload = $request->all();
+            $payment->save();
+        }
+
+        $this->upsertGatewayPayment(
+            $tranId,
+            '',
+            '',
+            '',
+            (float) $payment->amount,
+            'paid',
+            'N/A',
+            (string) $payment->currency
+        );
+
+        return $this->redirectGatewayResult('success', $request, [
+            'payment_scope' => 'technician',
+            'complaint_id' => (int) $payment->complaint_id,
+            'technician_payment_id' => (int) $payment->id,
+        ]);
+    }
+
+    private function handleTechnicianGatewayFailure(Request $request, string $status): JsonResponse|RedirectResponse
+    {
+        $payment = $this->resolveTechnicianCallbackPayment($request);
+        $tranId = (string) $request->input('tran_id', '');
+
+        if ($payment && (string) $payment->status !== 'successful') {
+            $payment->status = $status === 'cancelled' ? 'cancelled' : 'failed';
+            $payment->payment_method = 'sslcommerz';
+            $payment->transaction_ref = (string) $request->input('tran_id', $payment->transaction_ref);
+            $payment->failure_reason = (string) $request->input('failedreason', $status === 'cancelled' ? 'Payment cancelled by user.' : 'Gateway reported failure.');
+            $payment->callback_payload = $request->all();
+            $payment->save();
+        }
+
+        $this->upsertGatewayPayment(
+            $tranId,
+            '',
+            '',
+            '',
+            (float) optional($payment)->amount,
+            $status,
+            'N/A',
+            (string) (optional($payment)->currency ?? 'BDT')
+        );
+
+        return $this->redirectGatewayResult($status, $request, [
+            'payment_scope' => 'technician',
+            'complaint_id' => (int) optional($payment)->complaint_id,
+            'technician_payment_id' => (int) optional($payment)->id,
+        ]);
+    }
+
+    private function handleTechnicianGatewayIpn(Request $request): JsonResponse
+    {
+        $status = strtoupper((string) $request->input('status', ''));
+
+        if (!in_array($status, ['VALID', 'VALIDATED'], true)) {
+            return response()->json([
+                'status' => 'ignored',
+                'message' => 'IPN ignored for non-valid payment status.',
+            ], 200);
+        }
+
+        $payment = $this->resolveTechnicianCallbackPayment($request);
+
+        if (!$payment) {
+            return response()->json([
+                'status' => 'ignored',
+                'message' => 'Technician payment record was not found.',
+            ], 200);
+        }
+
+        if (!$this->validateGatewayCallback($request)) {
+            $payment->status = 'failed';
+            $payment->failure_reason = 'IPN callback validation failed.';
+            $payment->callback_payload = $request->all();
+            $payment->save();
+
+            return response()->json([
+                'status' => 'ignored',
+                'message' => 'IPN validation failed.',
+            ], 200);
+        }
+
+        if ((string) $payment->status !== 'successful') {
+            $amount = (float) $request->input('amount', (float) $payment->amount);
+            $payment->amount = round($amount > 0 ? $amount : (float) $payment->amount, 2);
+            $payment->status = 'successful';
+            $payment->payment_method = 'sslcommerz';
+            $payment->failure_reason = null;
+            $payment->transaction_ref = (string) $request->input('tran_id', $payment->transaction_ref);
+            $payment->paid_at = now();
+            $payment->validated_at = now();
+            $payment->callback_payload = $request->all();
+            $payment->save();
+        }
+
+        $this->upsertGatewayPayment(
+            (string) $request->input('tran_id', ''),
+            '',
+            '',
+            '',
+            (float) $payment->amount,
+            'paid',
+            'N/A',
+            (string) $payment->currency
+        );
+
+        return response()->json([
+            'status' => 'received',
+            'message' => 'SSLCommerz IPN processed for technician payment.',
+            'transaction_id' => (string) $request->input('tran_id'),
+            'technician_payment_id' => (int) $payment->id,
+        ], 200);
     }
 
     private function activeAssignment(int $tenantUserId): ?UnitTenantAssignment

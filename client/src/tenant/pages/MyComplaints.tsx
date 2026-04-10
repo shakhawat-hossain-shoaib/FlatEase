@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Badge, Button, Card, Col, Form, Row, Spinner, Table } from 'react-bootstrap';
+import { Badge, Button, Card, Col, Form, Modal, Row, Spinner, Table } from 'react-bootstrap';
 import { BsChatDots, BsFilter, BsSearch, BsSendCheck, BsShieldCheck } from 'react-icons/bs';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import ApiClient, { ComplaintEntity, ComplaintPriority, ComplaintStatus } from '../../api';
+import ApiClient, { ComplaintEntity, ComplaintPriority, ComplaintStatus, ComplaintTechnicianPaymentEntity } from '../../api';
 import { AdminEmptyState } from '../../components/admin/AdminEmptyState';
 import { AdminPageHeader } from '../../components/admin/AdminPageHeader';
 import { AdminSectionCard } from '../../components/admin/AdminSectionCard';
@@ -30,11 +30,20 @@ export default function MyComplaints() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | ComplaintStatus>('all');
   const [isResolvingId, setIsResolvingId] = useState<number | null>(null);
+  const [complaintPayments, setComplaintPayments] = useState<ComplaintTechnicianPaymentEntity[]>([]);
+  const [showPayTechnicianModal, setShowPayTechnicianModal] = useState(false);
+  const [payingComplaint, setPayingComplaint] = useState<ComplaintEntity | null>(null);
+  const [technicianPayAmount, setTechnicianPayAmount] = useState('');
+  const [isPayingTechnician, setIsPayingTechnician] = useState(false);
 
   const loadComplaints = useCallback(async () => {
     setIsLoading(true);
-    const response = await api.getComplaints('Tenant');
+    const [response, complaintPaymentResponse] = await Promise.all([
+      api.getComplaints('Tenant'),
+      api.getTenantComplaintPayments(),
+    ]);
     setComplaints(response?.data ?? []);
+    setComplaintPayments(complaintPaymentResponse?.payments ?? []);
     setIsLoading(false);
   }, [api]);
 
@@ -63,6 +72,60 @@ export default function MyComplaints() {
   const resolvedCount = complaints.filter((item) => item.status === 'resolved').length;
   const openCount = complaints.length - resolvedCount;
 
+  const latestPaymentByComplaint = useMemo(() => {
+    const map = new Map<number, ComplaintTechnicianPaymentEntity>();
+
+    complaintPayments.forEach((payment) => {
+      const existing = map.get(payment.complaint_id);
+
+      if (!existing) {
+        map.set(payment.complaint_id, payment);
+        return;
+      }
+
+      const existingTime = existing.created_at ? new Date(existing.created_at).getTime() : 0;
+      const currentTime = payment.created_at ? new Date(payment.created_at).getTime() : 0;
+
+      if (currentTime >= existingTime) {
+        map.set(payment.complaint_id, payment);
+      }
+    });
+
+    return map;
+  }, [complaintPayments]);
+
+  const getTechnicianPaymentBadgeVariant = (status: ComplaintTechnicianPaymentEntity['status']) => {
+    if (status === 'successful') {
+      return 'success';
+    }
+
+    if (status === 'pending') {
+      return 'warning';
+    }
+
+    if (status === 'failed') {
+      return 'danger';
+    }
+
+    return 'secondary';
+  };
+
+  const getTechnicianPaymentLabel = (status: ComplaintTechnicianPaymentEntity['status']) => {
+    if (status === 'successful') {
+      return 'সফল';
+    }
+
+    if (status === 'pending') {
+      return 'Pending';
+    }
+
+    if (status === 'failed') {
+      return 'Failed';
+    }
+
+    return 'Cancelled';
+  };
+
   const handleMarkResolved = async (complaintId: number) => {
     setIsResolvingId(complaintId);
     const response = await api.markComplaintResolvedByTenant(complaintId);
@@ -74,6 +137,36 @@ export default function MyComplaints() {
 
     toast.success('Complaint marked as solved.');
     await loadComplaints();
+  };
+
+  const openPayTechnicianModal = (complaint: ComplaintEntity) => {
+    const latestPayment = latestPaymentByComplaint.get(complaint.id);
+    setPayingComplaint(complaint);
+    setTechnicianPayAmount(latestPayment && latestPayment.amount > 0 ? String(latestPayment.amount) : '');
+    setShowPayTechnicianModal(true);
+  };
+
+  const handlePayTechnician = async () => {
+    if (!payingComplaint) {
+      return;
+    }
+
+    const amount = Number.parseFloat(technicianPayAmount);
+    if (Number.isNaN(amount) || amount <= 0) {
+      toast.error('Please enter a valid payment amount.');
+      return;
+    }
+
+    setIsPayingTechnician(true);
+    const response = await api.initiateTenantTechnicianPayment(payingComplaint.id, amount);
+    setIsPayingTechnician(false);
+
+    if (!response?.gateway_url) {
+      return;
+    }
+
+    setShowPayTechnicianModal(false);
+    window.location.href = response.gateway_url;
   };
 
   return (
@@ -177,6 +270,7 @@ export default function MyComplaints() {
                     <th>Category</th>
                     <th>Priority</th>
                     <th>Status</th>
+                    <th>Technician Payment</th>
                     <th>Created</th>
                     <th className="text-end">Action</th>
                   </tr>
@@ -184,6 +278,12 @@ export default function MyComplaints() {
                 <tbody>
                   {filteredComplaints.map((complaint) => (
                     <tr key={complaint.id}>
+                      {(() => {
+                        const technicianPayment = latestPaymentByComplaint.get(complaint.id);
+                        const canShowPay = complaint.status === 'resolved' && technicianPayment?.status !== 'successful';
+
+                        return (
+                          <>
                       <td>
                         <div className="fw-semibold">{complaint.title}</div>
                         <small className="text-muted">{complaint.description.slice(0, 90)}{complaint.description.length > 90 ? '...' : ''}</small>
@@ -194,6 +294,18 @@ export default function MyComplaints() {
                       </td>
                       <td>
                         <Badge bg={getComplaintBadgeVariant(complaint.status)}>{getComplaintStatusLabel(complaint.status)}</Badge>
+                      </td>
+                      <td>
+                        {!technicianPayment ? (
+                          <span className="text-muted small">No payment yet</span>
+                        ) : (
+                          <div className="d-flex flex-column gap-1">
+                            <Badge bg={getTechnicianPaymentBadgeVariant(technicianPayment.status)} className="align-self-start">
+                              {getTechnicianPaymentLabel(technicianPayment.status)}
+                            </Badge>
+                            <small className="text-muted">BDT {technicianPayment.amount.toFixed(2)}</small>
+                          </div>
+                        )}
                       </td>
                       <td>{formatDate(complaint.created_at)}</td>
                       <td className="text-end">
@@ -208,17 +320,65 @@ export default function MyComplaints() {
                             {isResolvingId === complaint.id ? 'Updating...' : 'Mark Solved'}
                           </Button>
                         ) : (
-                          <Badge bg="success" className="badge-soft-success">
-                            <BsShieldCheck className="me-1" /> Resolved
-                          </Badge>
+                          <div className="d-inline-flex align-items-center gap-2">
+                            {canShowPay ? (
+                              <Button
+                                size="sm"
+                                variant="success"
+                                onClick={() => openPayTechnicianModal(complaint)}
+                                disabled={isPayingTechnician}
+                              >
+                                Pay Technician
+                              </Button>
+                            ) : null}
+                            <Badge bg="success" className="badge-soft-success">
+                              <BsShieldCheck className="me-1" /> Resolved
+                            </Badge>
+                          </div>
                         )}
                       </td>
+                          </>
+                        );
+                      })()}
                     </tr>
                   ))}
                 </tbody>
               </Table>
             )}
           </AdminSectionCard>
+
+          <Modal show={showPayTechnicianModal} onHide={() => setShowPayTechnicianModal(false)} centered>
+            <Modal.Header closeButton>
+              <Modal.Title>Pay Technician</Modal.Title>
+            </Modal.Header>
+            <Modal.Body>
+              <p className="mb-2">
+                Complaint: <strong>{payingComplaint?.title ?? 'N/A'}</strong>
+              </p>
+              <Form.Group>
+                <Form.Label>Amount (BDT)</Form.Label>
+                <Form.Control
+                  type="number"
+                  min="1"
+                  step="0.01"
+                  placeholder="Enter amount"
+                  value={technicianPayAmount}
+                  onChange={(event) => setTechnicianPayAmount(event.target.value)}
+                />
+                <Form.Text className="text-muted">
+                  You will be redirected to SSLCommerz for secure payment confirmation.
+                </Form.Text>
+              </Form.Group>
+            </Modal.Body>
+            <Modal.Footer>
+              <Button variant="secondary" onClick={() => setShowPayTechnicianModal(false)} disabled={isPayingTechnician}>
+                Cancel
+              </Button>
+              <Button variant="success" onClick={() => void handlePayTechnician()} disabled={isPayingTechnician}>
+                {isPayingTechnician ? 'Redirecting...' : 'Continue to SSLCommerz'}
+              </Button>
+            </Modal.Footer>
+          </Modal>
         </div>
       </div>
     </TenantLayout>

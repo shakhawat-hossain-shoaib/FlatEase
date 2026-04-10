@@ -1,41 +1,18 @@
-import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Badge, Button, Card, Col, Container, Form, Nav, Navbar, Row } from 'react-bootstrap';
+import { Badge, Button, Card, Col, Container, Nav, Navbar, Row } from 'react-bootstrap';
 import {
   BsArrowRight,
-  BsBarChart,
   BsBell,
   BsBuildings,
   BsChatDots,
   BsCheck2Circle,
   BsCreditCard2Front,
   BsFileEarmarkText,
-  BsLightningCharge,
   BsPeople,
   BsPlayCircle,
-  BsShieldLock,
-  BsStars,
 } from 'react-icons/bs';
 
 export default function Landing() {
-  const [unitCount, setUnitCount] = useState(120);
-  const [averageRent, setAverageRent] = useState(14000);
-
-  const estimate = useMemo(() => {
-    const monthlyCollection = unitCount * averageRent;
-    const manualOpsCost = monthlyCollection * 0.08;
-    const smartOpsCost = monthlyCollection * 0.025;
-    const monthlySavings = manualOpsCost - smartOpsCost;
-
-    return {
-      monthlyCollection,
-      manualOpsCost,
-      smartOpsCost,
-      monthlySavings,
-      annualSavings: monthlySavings * 12,
-    };
-  }, [unitCount, averageRent]);
-
   const featureCards = [
     {
       title: 'Property Operations',
@@ -90,7 +67,6 @@ export default function Landing() {
             <Nav className="ms-auto align-items-center gap-2">
               <Nav.Link href="#features" className="text-dark">Features</Nav.Link>
               <Nav.Link href="#impact" className="text-dark">Impact</Nav.Link>
-              <Nav.Link href="#calculator" className="text-dark">Calculator</Nav.Link>
               <Link to="/login" className="btn landing-btn landing-btn-ghost landing-btn-sm ms-2">
                 Sign In
               </Link>
@@ -107,7 +83,7 @@ export default function Landing() {
           <Container>
             <Row className="align-items-center g-5">
               <Col md={6}>
-                <Badge className="landing-chip mb-3">Interactive Property Ops Platform</Badge>
+                <Badge className="landing-chip mb-3">Modern Property Management Platform</Badge>
                 <h1 className="landing-hero-title mb-3">From scattered tasks to one live operating system.</h1>
                 <p className="landing-hero-copy mb-4">
                   FlatEase helps teams run buildings with speed and precision. Manage leases,
@@ -125,43 +101,12 @@ export default function Landing() {
                 <small className="text-muted">No credit card required • Fast onboarding • Role-based access</small>
               </Col>
               <Col md={6}>
-                <div className="landing-hero-panel">
-                  <div className="landing-hero-panel-top">
-                    <div>
-                      <div className="landing-panel-label">This Month</div>
-                      <div className="landing-panel-value">BDT 2,420,000</div>
-                    </div>
-                    <span className="landing-panel-pill">+18% collected</span>
-                  </div>
-                  <div className="landing-mini-grid">
-                    <div className="landing-mini-card">
-                      <BsBarChart />
-                      <span>Collections</span>
-                    </div>
-                    <div className="landing-mini-card">
-                      <BsLightningCharge />
-                      <span>Tickets</span>
-                    </div>
-                    <div className="landing-mini-card">
-                      <BsShieldLock />
-                      <span>Docs</span>
-                    </div>
-                    <div className="landing-mini-card">
-                      <BsStars />
-                      <span>SLA</span>
-                    </div>
-                  </div>
-                  <div className="landing-feed mt-3">
-                    <div className="landing-feed-row">
-                      <BsCheck2Circle className="text-success" /> Payment settled for Unit B-204
-                    </div>
-                    <div className="landing-feed-row">
-                      <BsCheck2Circle className="text-success" /> Complaint assigned to Electrical team
-                    </div>
-                    <div className="landing-feed-row">
-                      <BsCheck2Circle className="text-success" /> Lease renewal alert sent to 8 tenants
-                    </div>
-                  </div>
+                <div className="landing-photo-card">
+                  <img
+                    src="https://images.unsplash.com/photo-1460317442991-0ec209397118?auto=format&fit=crop&w=1200&q=80"
+                    alt="Modern apartment buildings"
+                    className="img-fluid rounded-4"
+                  />
                 </div>
               </Col>
             </Row>
@@ -217,109 +162,20 @@ export default function Landing() {
                 </div>
               </Col>
               <Col md={6}>
-                <Row className="g-3">
-                  <Col sm={6}>
-                    <Card className="landing-kpi-card border-0">
-                      <Card.Body>
-                        <div className="landing-kpi-value">98.2%</div>
-                        <div className="landing-kpi-label">Tenant Satisfaction</div>
-                      </Card.Body>
-                    </Card>
-                  </Col>
-                  <Col sm={6}>
-                    <Card className="landing-kpi-card border-0">
-                      <Card.Body>
-                        <div className="landing-kpi-value">2.4x</div>
-                        <div className="landing-kpi-label">Faster Ticket Closure</div>
-                      </Card.Body>
-                    </Card>
-                  </Col>
-                  <Col sm={6}>
-                    <Card className="landing-kpi-card border-0">
-                      <Card.Body>
-                        <div className="landing-kpi-value">500+</div>
-                        <div className="landing-kpi-label">Buildings Managed</div>
-                      </Card.Body>
-                    </Card>
-                  </Col>
-                  <Col sm={6}>
-                    <Card className="landing-kpi-card border-0">
-                      <Card.Body>
-                        <div className="landing-kpi-value">24/7</div>
-                        <div className="landing-kpi-label">Live Visibility</div>
-                      </Card.Body>
-                    </Card>
-                  </Col>
-                </Row>
+                <div className="landing-photo-grid">
+                  <img
+                    src="https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=900&q=80"
+                    alt="Apartment exterior"
+                    className="img-fluid rounded-4"
+                  />
+                  <img
+                    src="https://images.unsplash.com/photo-1494526585095-c41746248156?auto=format&fit=crop&w=900&q=80"
+                    alt="Modern flat interior"
+                    className="img-fluid rounded-4"
+                  />
+                </div>
               </Col>
             </Row>
-          </Container>
-        </section>
-
-        <section id="calculator" className="py-5">
-          <Container>
-            <Card className="landing-calculator border-0">
-              <Card.Body>
-                <Row className="g-4 align-items-center">
-                  <Col lg={6}>
-                    <h3 className="mb-2">Live ROI Calculator</h3>
-                    <p className="text-muted mb-4">Adjust your building profile to estimate potential monthly and yearly operational savings.</p>
-
-                    <Form.Group className="mb-3">
-                      <div className="d-flex justify-content-between mb-1">
-                        <Form.Label className="mb-0">Number of occupied units</Form.Label>
-                        <strong>{unitCount}</strong>
-                      </div>
-                      <Form.Range
-                        min={20}
-                        max={600}
-                        value={unitCount}
-                        onChange={(event) => setUnitCount(Number(event.target.value))}
-                      />
-                    </Form.Group>
-
-                    <Form.Group>
-                      <div className="d-flex justify-content-between mb-1">
-                        <Form.Label className="mb-0">Average monthly rent (BDT)</Form.Label>
-                        <strong>{averageRent.toLocaleString()}</strong>
-                      </div>
-                      <Form.Range
-                        min={7000}
-                        max={45000}
-                        step={500}
-                        value={averageRent}
-                        onChange={(event) => setAverageRent(Number(event.target.value))}
-                      />
-                    </Form.Group>
-                  </Col>
-
-                  <Col lg={6}>
-                    <div className="landing-calculator-result">
-                      <div className="landing-result-item">
-                        <span>Monthly Collection</span>
-                        <strong>BDT {Math.round(estimate.monthlyCollection).toLocaleString()}</strong>
-                      </div>
-                      <div className="landing-result-item">
-                        <span>Manual Ops Cost</span>
-                        <strong>BDT {Math.round(estimate.manualOpsCost).toLocaleString()}</strong>
-                      </div>
-                      <div className="landing-result-item">
-                        <span>With FlatEase</span>
-                        <strong>BDT {Math.round(estimate.smartOpsCost).toLocaleString()}</strong>
-                      </div>
-                      <div className="landing-result-item highlight">
-                        <span>Estimated Monthly Savings</span>
-                        <strong>BDT {Math.round(estimate.monthlySavings).toLocaleString()}</strong>
-                      </div>
-                      <div className="landing-result-item annual">
-                        <span>Estimated Yearly Savings</span>
-                        <strong>BDT {Math.round(estimate.annualSavings).toLocaleString()}</strong>
-                      </div>
-                    </div>
-                  </Col>
-                </Row>
-              </Card.Body>
-            </Card>
           </Container>
         </section>
 
