@@ -3,6 +3,9 @@ FROM node:18-alpine as builder
 
 WORKDIR /app
 
+ARG VITE_BACKEND_ENDPOINT=http://localhost:8000/api
+ENV VITE_BACKEND_ENDPOINT=$VITE_BACKEND_ENDPOINT
+
 # Copy package files
 COPY client/package*.json ./
 

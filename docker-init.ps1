@@ -6,6 +6,7 @@ Write-Host "FlatEase Docker Setup"
 Write-Host "========================"
 
 $targetBranch = if ($env:TARGET_BRANCH) { $env:TARGET_BRANCH } else { "" }
+$resetVolumes = if ($env:RESET_VOLUMES) { $env:RESET_VOLUMES } else { "0" }
 
 if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
     Write-Error "Docker is not installed. Please install Docker first."
@@ -38,8 +39,14 @@ if ($targetBranch) {
 }
 
 Write-Host ""
-Write-Host "Stopping old containers and removing stale volumes..."
-docker compose --env-file .env down -v --remove-orphans
+if ($resetVolumes -eq "1") {
+    Write-Host "Stopping old containers and removing stale volumes..."
+    docker compose --env-file .env down -v --remove-orphans
+}
+else {
+    Write-Host "Stopping old containers (preserving volumes)..."
+    docker compose --env-file .env down --remove-orphans
+}
 
 Write-Host ""
 Write-Host "Building Docker images (fresh build)..."
@@ -97,4 +104,5 @@ if ($targetBranch) {
 } else {
     Write-Host "  - Pull updates: git pull and then docker compose --env-file .env exec -T backend bash /var/www/database/migrations/run_sql_migrations.sh"
 }
+Write-Host "  - Full reset (wipe DB volume): `$env:RESET_VOLUMES=\"1\"; .\\docker-init.ps1"
 Write-Host "  - See DOCKER.md for detailed documentation"

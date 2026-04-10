@@ -9,6 +9,7 @@ echo "FlatEase Docker Setup"
 echo "========================"
 
 TARGET_BRANCH="${TARGET_BRANCH:-}"
+RESET_VOLUMES="${RESET_VOLUMES:-0}"
 
 if ! command -v docker &> /dev/null; then
     echo "Docker is not installed. Please install Docker first."
@@ -55,8 +56,13 @@ if [ -n "${TARGET_BRANCH}" ]; then
 fi
 
 echo ""
-echo "Stopping old containers and removing stale volumes..."
-docker compose --env-file .env down -v --remove-orphans
+if [ "${RESET_VOLUMES}" = "1" ]; then
+    echo "Stopping old containers and removing stale volumes..."
+    docker compose --env-file .env down -v --remove-orphans
+else
+    echo "Stopping old containers (preserving volumes)..."
+    docker compose --env-file .env down --remove-orphans
+fi
 
 echo ""
 echo "Building Docker images (fresh build)..."
@@ -93,4 +99,5 @@ if [ -n "${TARGET_BRANCH}" ]; then
 else
     echo "  - Pull updates: git pull && docker compose --env-file .env exec -T backend bash /var/www/database/migrations/run_sql_migrations.sh"
 fi
+echo "  - Full reset (wipe DB volume): RESET_VOLUMES=1 ./docker-init.sh"
 echo "  - See DOCKER.md for detailed documentation"

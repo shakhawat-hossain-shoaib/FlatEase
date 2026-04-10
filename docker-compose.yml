@@ -11,7 +11,7 @@ services:
       MYSQL_USER: ${MYSQL_USER:-flatease}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:-Root@1234}
     ports:
-      - "${DB_PORT:-3306}:3306"
+      - "${MYSQL_PORT:-3306}:3306"
     volumes:
       - mysql_data:/var/lib/mysql
     networks:
@@ -63,6 +63,8 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.frontend
+      args:
+        VITE_BACKEND_ENDPOINT: ${VITE_BACKEND_ENDPOINT:-http://localhost:8000/api}
     container_name: flatease-frontend
     env_file:
       - .env

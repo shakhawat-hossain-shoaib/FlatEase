@@ -21,6 +21,8 @@ Provide one reproducible local setup for every developer using Docker, MySQL, SQ
 
 ## First-Time Setup
 
+By default, init scripts preserve your Docker volumes. To force a clean database, set `RESET_VOLUMES=1` before running the script.
+
 ### Linux / macOS
 
 ```bash
@@ -66,7 +68,9 @@ If you want the init scripts to sync a specific branch before starting, set `TAR
 
 - Frontend: http://localhost:5173
 - Backend: http://localhost:8000
-- MySQL: localhost:3306
+- MySQL: localhost:${MYSQL_PORT:-3306}
+
+Use `MYSQL_PORT` for host mapping and keep `DB_PORT=3306` for container-to-container traffic.
 
 ## Database-First Rules
 
@@ -94,6 +98,9 @@ docker compose logs -f
 
 # Stop
 docker compose down
+
+# Full reset (wipe DB volume intentionally)
+RESET_VOLUMES=1 ./docker-init.sh
 ```
 
 ## Team-Safe Update Process
@@ -102,7 +109,7 @@ Use this when code looks old or mismatched after pulling:
 
 ```bash
 git pull
-docker compose down -v --remove-orphans
+docker compose down --remove-orphans
 docker compose build --no-cache --pull
 docker compose up -d
 docker compose exec -T backend bash /var/www/database/migrations/run_sql_migrations.sh
@@ -113,7 +120,7 @@ Windows (PowerShell):
 
 ```powershell
 git pull
-docker compose down -v --remove-orphans
+docker compose down --remove-orphans
 docker compose build --no-cache --pull
 docker compose up -d
 docker compose exec -T backend bash /var/www/database/migrations/run_sql_migrations.sh
@@ -125,10 +132,7 @@ docker compose exec -T backend bash /var/www/database/seeds/run_sql_seeds.sh
 Use this only when you intentionally want a clean local DB:
 
 ```bash
-docker compose down -v
-docker compose up -d --build
-docker compose exec -T backend bash /var/www/database/migrations/run_sql_migrations.sh
-docker compose exec -T backend bash /var/www/database/seeds/run_sql_seeds.sh
+RESET_VOLUMES=1 ./docker-init.sh
 ```
 
 ## Seeded Default Accounts
