@@ -9,11 +9,10 @@ Provide one reproducible local setup for every developer using Docker, MySQL, SQ
 ## Team Workflow
 
 1. Clone repository.
-2. Switch to the active team branch.
-3. Copy environment template.
-4. Start containers.
-5. Run SQL migrations and SQL seeds.
-6. Start coding.
+2. Copy environment template.
+3. Start containers.
+4. Run SQL migrations and SQL seeds.
+5. Start coding.
 
 ## Prerequisites
 
@@ -25,31 +24,27 @@ Provide one reproducible local setup for every developer using Docker, MySQL, SQ
 ### Linux / macOS
 
 ```bash
-git clone --branch Dockerizing <your-repository-url>
+git clone <your-repository-url>
 cd FlatEase
 cp .env.example .env
-docker compose up -d --build
-docker compose exec -T backend bash /var/www/database/migrations/run_sql_migrations.sh
-docker compose exec -T backend bash /var/www/database/seeds/run_sql_seeds.sh
+chmod +x docker-init.sh
+./docker-init.sh
 ```
 
 ### Windows (PowerShell)
 
 ```powershell
-git clone --branch Dockerizing <your-repository-url>
+git clone <your-repository-url>
 cd FlatEase
 Copy-Item .env.example .env
-docker compose up -d --build
-docker compose exec -T backend bash /var/www/database/migrations/run_sql_migrations.sh
-docker compose exec -T backend bash /var/www/database/seeds/run_sql_seeds.sh
+powershell -ExecutionPolicy Bypass -File .\docker-init.ps1
 ```
 
-If you already cloned before this setup was introduced:
+If you already cloned before this setup was introduced, just pull the latest changes and rerun the init script:
 
 ```bash
-git fetch --all
-git checkout Dockerizing
-git pull origin Dockerizing
+git pull
+./docker-init.sh
 ```
 
 Alternative one-command setup:
@@ -64,6 +59,8 @@ Windows one-command setup:
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\docker-init.ps1
 ```
+
+If you want the init scripts to sync a specific branch before starting, set `TARGET_BRANCH` first. Otherwise they use whatever branch is already checked out.
 
 ## Access URLs
 
@@ -86,7 +83,7 @@ powershell -ExecutionPolicy Bypass -File .\docker-init.ps1
 docker compose up -d
 
 # Pull latest and apply schema changes
-git pull origin Dockerizing
+git pull
 docker compose exec -T backend bash /var/www/database/migrations/run_sql_migrations.sh
 
 # Rerun seed safely
@@ -104,9 +101,7 @@ docker compose down
 Use this when code looks old or mismatched after pulling:
 
 ```bash
-git fetch --all
-git checkout Dockerizing
-git pull origin Dockerizing
+git pull
 docker compose down -v --remove-orphans
 docker compose build --no-cache --pull
 docker compose up -d
@@ -117,13 +112,12 @@ docker compose exec -T backend bash /var/www/database/seeds/run_sql_seeds.sh
 Windows (PowerShell):
 
 ```powershell
-git fetch --all
-git checkout Dockerizing
-git pull origin Dockerizing
+git pull
 docker compose down -v --remove-orphans
 docker compose build --no-cache --pull
 docker compose up -d
-docker compose exec -T backend php artisan migrate --seed --force --no-interaction
+docker compose exec -T backend bash /var/www/database/migrations/run_sql_migrations.sh
+docker compose exec -T backend bash /var/www/database/seeds/run_sql_seeds.sh
 ```
 
 ## Reset Local Database

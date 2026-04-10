@@ -8,21 +8,33 @@ set -e
 echo "FlatEase Docker Setup"
 echo "========================"
 
-TARGET_BRANCH="${TARGET_BRANCH:-Dockerizing}"
+TARGET_BRANCH="${TARGET_BRANCH:-}"
 
-# Check if Docker is installed
 if ! command -v docker &> /dev/null; then
     echo "Docker is not installed. Please install Docker first."
     exit 1
 fi
 
-# Check if Docker Compose plugin is available
 if ! docker compose version &> /dev/null; then
     echo "Docker Compose is not available. Please install/enable Docker Compose."
     exit 1
 fi
 
-# Check if root .env exists
+run_with_retry() {
+    local max_attempts=12
+    local attempt=1
+
+    until "$@"; do
+        if [ "$attempt" -ge "$max_attempts" ]; then
+            return 1
+        fi
+
+        echo "Command failed. Retrying in 5 seconds..."
+        sleep 5
+        attempt=$((attempt + 1))
+    done
+}
+
 if [ ! -f .env ]; then
     if [ -f .env.example ]; then
         echo "Copying .env.example to .env"
@@ -34,11 +46,13 @@ if [ ! -f .env ]; then
     fi
 fi
 
-echo ""
-echo "Syncing repository on branch: ${TARGET_BRANCH}"
-git fetch --all
-git checkout "${TARGET_BRANCH}"
-git pull origin "${TARGET_BRANCH}"
+if [ -n "${TARGET_BRANCH}" ]; then
+    echo ""
+    echo "Syncing repository on branch: ${TARGET_BRANCH}"
+    git fetch --all
+    git checkout "${TARGET_BRANCH}"
+    git pull origin "${TARGET_BRANCH}"
+fi
 
 echo ""
 echo "Stopping old containers and removing stale volumes..."
@@ -46,11 +60,7 @@ docker compose --env-file .env down -v --remove-orphans
 
 echo ""
 echo "Building Docker images (fresh build)..."
-docker compose --env-file .env build --no-cache --pull
-
-echo ""
-echo "Starting services..."
-docker compose --env-file .env up -d
+docker compose --env-file .env up -d --build --force-recreate
 
 echo ""
 echo "Services started successfully."
@@ -60,10 +70,10 @@ sleep 5
 
 echo ""
 echo "Running SQL database migrations..."
-docker compose --env-file .env exec -T backend bash /var/www/database/migrations/run_sql_migrations.sh
+run_with_retry docker compose --env-file .env exec -T backend bash /var/www/database/migrations/run_sql_migrations.sh
 
 echo "Running SQL seed data..."
-docker compose --env-file .env exec -T backend bash /var/www/database/seeds/run_sql_seeds.sh
+run_with_retry docker compose --env-file .env exec -T backend bash /var/www/database/seeds/run_sql_seeds.sh
 
 echo ""
 echo "Database setup complete."
@@ -78,5 +88,9 @@ echo ""
 echo "Next steps:"
 echo "  - View logs: docker compose logs -f"
 echo "  - Stop services: docker compose down"
-echo "  - Pull updates: git pull origin ${TARGET_BRANCH} && docker compose --env-file .env exec -T backend bash /var/www/database/migrations/run_sql_migrations.sh"
+if [ -n "${TARGET_BRANCH}" ]; then
+    echo "  - Pull updates: git pull origin ${TARGET_BRANCH} && docker compose --env-file .env exec -T backend bash /var/www/database/migrations/run_sql_migrations.sh"
+else
+    echo "  - Pull updates: git pull && docker compose --env-file .env exec -T backend bash /var/www/database/migrations/run_sql_migrations.sh"
+fi
 echo "  - See DOCKER.md for detailed documentation"
