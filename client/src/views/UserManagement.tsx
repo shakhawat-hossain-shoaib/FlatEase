@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Button, Card, Col, Form, Modal, Row, Spinner } from 'react-bootstrap';
+import { Button, Card, Col, Form, Modal, Row, Spinner, Table } from 'react-bootstrap';
 import { BsClipboard, BsEye, BsEyeSlash, BsPlus } from 'react-icons/bs';
-import ApiClient, { BuildingEntity, CreateTenantWithAssignmentResponse, UnitEntity } from '../api';
+import ApiClient, { AdminCreatedUserCredential, BuildingEntity, CreateTenantWithAssignmentResponse, UnitEntity } from '../api';
 import { DashboardLayout } from './DashboardLayout';
 import toast from 'react-hot-toast';
 
@@ -46,17 +46,35 @@ export default function UserManagement() {
   const [isLoadingBuildings, setIsLoadingBuildings] = useState(false);
   const [isLoadingUnits, setIsLoadingUnits] = useState(false);
   const [successData, setSuccessData] = useState<CreateTenantWithAssignmentResponse | null>(null);
+  const [createdUsers, setCreatedUsers] = useState<AdminCreatedUserCredential[]>([]);
+  const [isLoadingCreatedUsers, setIsLoadingCreatedUsers] = useState(false);
+  const [visiblePasswords, setVisiblePasswords] = useState<Record<number, boolean>>({});
+  const [resettingUserId, setResettingUserId] = useState<number | null>(null);
   const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
-    const loadBuildings = async () => {
+    const loadPageData = async () => {
       setIsLoadingBuildings(true);
+      setIsLoadingCreatedUsers(true);
+
       const response = await api.getAdminBuildings();
+      const credentialResponse = await api.getAdminCreatedUserCredentials();
+
       setBuildings(response ?? []);
+      setCreatedUsers(credentialResponse ?? []);
+
       setIsLoadingBuildings(false);
+      setIsLoadingCreatedUsers(false);
     };
-    void loadBuildings();
+    void loadPageData();
   }, [api]);
+
+  const loadCreatedUsers = async () => {
+    setIsLoadingCreatedUsers(true);
+    const response = await api.getAdminCreatedUserCredentials();
+    setCreatedUsers(response ?? []);
+    setIsLoadingCreatedUsers(false);
+  };
 
   const handleBuildingChange = async (buildingId: string) => {
     setFormData((prev) => ({ ...prev, building_id: buildingId, unit_id: '' }));
@@ -121,6 +139,7 @@ export default function UserManagement() {
         rent_amount: '',
       });
       toast.success('Tenant created and assigned successfully!');
+      await loadCreatedUsers();
     }
     setIsLoading(false);
   };
@@ -128,6 +147,46 @@ export default function UserManagement() {
   const copyToClipboard = (text: string) => {
     void navigator.clipboard.writeText(text);
     toast.success('Copied to clipboard!');
+  };
+
+  const handleResetCredential = async (user: AdminCreatedUserCredential) => {
+    const confirmReset = window.confirm(`Reset password for ${user.name} (${user.email})?`);
+    if (!confirmReset) {
+      return;
+    }
+
+    setResettingUserId(user.id);
+    const response = await api.resetAdminUserCredential(user.id);
+    setResettingUserId(null);
+
+    if (!response?.success) {
+      toast.error('Failed to reset credential');
+      return;
+    }
+
+    toast.success(`New password: ${response.user.password}`);
+    await copyToClipboard(response.user.password);
+    await loadCreatedUsers();
+    setVisiblePasswords((prev) => ({ ...prev, [user.id]: true }));
+  };
+
+  const handleDeleteUser = async (user: AdminCreatedUserCredential) => {
+    const confirmDelete = window.confirm(`Delete tenant account ${user.id} permanently?`);
+    if (!confirmDelete) {
+      return;
+    }
+
+    setResettingUserId(user.id);
+    const response = await api.deleteAdminUser(user.id);
+    setResettingUserId(null);
+
+    if (!response?.success) {
+      toast.error(response?.message ?? 'Failed to delete tenant account');
+      return;
+    }
+
+    toast.success(response.message);
+    await loadCreatedUsers();
   };
 
   return (
@@ -149,8 +208,94 @@ export default function UserManagement() {
           </div>
 
           <Card className="border-0 shadow-sm">
-            <Card.Body className="text-center py-8">
-              <p className="text-muted mb-0">Tenant management features coming soon...</p>
+            <Card.Body>
+              <div className="d-flex align-items-center justify-content-between mb-3">
+                <h5 className="mb-0">Tenant Account Credentials</h5>
+                <Button variant="outline-primary" size="sm" onClick={() => void loadCreatedUsers()} disabled={isLoadingCreatedUsers}>
+                  {isLoadingCreatedUsers ? 'Refreshing...' : 'Refresh'}
+                </Button>
+              </div>
+
+              {isLoadingCreatedUsers ? (
+                <div className="d-flex align-items-center gap-2 text-muted">
+                  <Spinner animation="border" size="sm" />
+                  Loading credentials...
+                </div>
+              ) : createdUsers.length === 0 ? (
+                <p className="text-muted mb-0">No created user credentials found yet.</p>
+              ) : (
+                <Table responsive hover className="align-middle mb-0">
+                  <thead>
+                    <tr>
+                      <th>User ID</th>
+                      <th>Name</th>
+                      <th>Email</th>
+                      <th>Password</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {createdUsers.map((user) => {
+                      const isVisible = Boolean(visiblePasswords[user.id]);
+                      const rawPassword = user.password ?? 'Not available';
+                      const hiddenPassword = '********';
+
+                      return (
+                        <tr key={user.id}>
+                          <td>{user.id}</td>
+                          <td>{user.name}</td>
+                          <td>{user.email}</td>
+                          <td>
+                            <div>
+                              {isVisible ? rawPassword : hiddenPassword}
+                            </div>
+                          </td>
+                          <td>
+                            <div className="d-flex gap-2">
+                              <Button
+                                variant="outline-secondary"
+                                size="sm"
+                                onClick={() => setVisiblePasswords((prev) => ({
+                                  ...prev,
+                                  [user.id]: !isVisible,
+                                }))}
+                              >
+                                {isVisible ? <BsEyeSlash /> : <BsEye />}
+                              </Button>
+                              <Button
+                                variant="outline-secondary"
+                                size="sm"
+                                disabled={!user.password}
+                                onClick={() => user.password && copyToClipboard(user.password)}
+                              >
+                                <BsClipboard />
+                              </Button>
+                              <Button
+                                variant="outline-danger"
+                                size="sm"
+                                disabled={resettingUserId === user.id}
+                                onClick={() => void handleDeleteUser(user)}
+                              >
+                                Delete
+                              </Button>
+                              {!user.password && (
+                                <Button
+                                  variant="outline-warning"
+                                  size="sm"
+                                  disabled={resettingUserId === user.id}
+                                  onClick={() => void handleResetCredential(user)}
+                                >
+                                  {resettingUserId === user.id ? 'Resetting...' : 'Reset'}
+                                </Button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </Table>
+              )}
             </Card.Body>
           </Card>
         </div>

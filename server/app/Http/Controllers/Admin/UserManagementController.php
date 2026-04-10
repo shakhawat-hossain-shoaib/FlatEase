@@ -9,12 +9,63 @@ use App\Models\Unit;
 use App\Models\UnitTenantAssignment;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rules;
 
 class UserManagementController extends Controller
 {
+    public function createdCredentials()
+    {
+        $rows = DB::table('users as u')
+            ->leftJoin('admin_user_credentials as auc', 'auc.user_id', '=', 'u.id')
+            ->leftJoin('users as creator', 'creator.id', '=', 'auc.created_by_user_id')
+            ->select([
+                'u.id',
+                'u.name',
+                'u.email',
+                'u.role',
+                'u.created_at',
+                'auc.id as credential_id',
+                'auc.password_ciphertext',
+                'auc.created_at as credential_created_at',
+                'creator.name as created_by_name',
+            ])
+            ->where('u.role', 'tenant')
+            ->orderByDesc('u.id')
+            ->get();
+
+        $data = $rows->map(function ($row) {
+            $password = null;
+            $hasCiphertext = !empty($row->password_ciphertext);
+
+            if ($hasCiphertext) {
+                try {
+                    $password = Crypt::decryptString((string) $row->password_ciphertext);
+                } catch (\Throwable $exception) {
+                    Log::warning('Password decryption failed', [
+                        'user_id' => (int) $row->id,
+                        'error' => $exception->getMessage(),
+                        'ciphertext_length' => strlen((string) $row->password_ciphertext),
+                    ]);
+                    $password = null;
+                }
+            }
+
+            return [
+                'id' => (int) $row->id,
+                'name' => (string) $row->name,
+                'email' => (string) $row->email,
+                'password' => $password,
+            ];
+        })->values();
+
+        return response()->json($data, 200);
+    }
+
     public function assignable()
     {
         $users = User::query()
@@ -72,6 +123,8 @@ class UserManagementController extends Controller
             'role' => $validated['role'],
         ]);
 
+        $this->storeAdminCreatedCredential((int) $user->id, (string) $validated['password'], (int) optional($request->user())->id);
+
         if ($user->role === 'technician') {
             Technician::updateOrCreate(
                 ['user_id' => $user->id],
@@ -106,6 +159,7 @@ class UserManagementController extends Controller
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
+                'password' => $validated['password'],
                 'role' => $user->role,
             ],
         ], 201);
@@ -159,6 +213,8 @@ class UserManagementController extends Controller
             'role' => 'tenant',
         ]);
 
+        $this->storeAdminCreatedCredential((int) $user->id, $plainPassword, (int) $request->user()->id);
+
         TenantProfile::create([
             'user_id' => $user->id,
             'phone' => $validated['phone'] ?? null,
@@ -200,6 +256,118 @@ class UserManagementController extends Controller
         ], 201);
     }
 
+    public function resetCredential(Request $request, int $userId)
+    {
+        $user = User::query()
+            ->whereIn('role', ['tenant', 'technician', 'admin'])
+            ->find($userId);
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'User not found.',
+            ], 404);
+        }
+
+        $plainPassword = bin2hex(random_bytes(6));
+
+        try {
+            DB::transaction(function () use ($user, $plainPassword, $request) {
+                $user->password = Hash::make($plainPassword);
+                $user->save();
+
+                $this->storeAdminCreatedCredential(
+                    (int) $user->id,
+                    $plainPassword,
+                    (int) optional($request->user())->id
+                );
+            });
+        } catch (\Throwable $exception) {
+            Log::error('RESET_CREDENTIAL_FAILED', [
+                'user_id' => $userId,
+                'error' => $exception->getMessage(),
+                'exception_type' => get_class($exception),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to reset credential.',
+            ], 500);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Credential reset successfully.',
+            'user' => [
+                'id' => (int) $user->id,
+                'name' => (string) $user->name,
+                'email' => (string) $user->email,
+                'role' => (string) $user->role,
+                'password' => $plainPassword,
+            ],
+        ], 200);
+    }
+
+    public function destroy(Request $request, int $userId)
+    {
+        if ((string) optional($request->user())->role !== 'admin') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Forbidden. Admin access required.',
+            ], 403);
+        }
+
+        $user = User::query()
+            ->where('role', 'tenant')
+            ->with(['unitAssignments.unit'])
+            ->find($userId);
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Tenant not found.',
+            ], 404);
+        }
+
+        try {
+            DB::transaction(function () use ($user) {
+                $activeAssignments = $user->unitAssignments()->where('status', 'active')->with('unit')->get();
+
+                $activeAssignments->each(function (UnitTenantAssignment $assignment) {
+                    $assignment->status = 'terminated';
+                    $assignment->moved_out_at = now();
+                    $assignment->save();
+
+                    if ($assignment->unit) {
+                        $assignment->unit->occupancy_status = 'vacant';
+                        $assignment->unit->save();
+                    }
+                });
+
+                TenantProfile::where('user_id', $user->id)->delete();
+                $user->delete();
+            });
+        } catch (
+            \Throwable $exception
+        ) {
+            Log::error('TENANT_DELETE_FAILED', [
+                'user_id' => $userId,
+                'error' => $exception->getMessage(),
+                'exception_type' => get_class($exception),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to delete tenant account.',
+            ], 500);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Tenant account deleted successfully.',
+        ], 200);
+    }
+
     public function getVacantUnits($buildingId)
     {
         $units = Unit::where('building_id', $buildingId)
@@ -209,5 +377,57 @@ class UserManagementController extends Controller
             ->get();
 
         return response()->json($units, 200);
+    }
+
+    private function storeAdminCreatedCredential(int $userId, string $plainPassword, int $createdByUserId): void
+    {
+        Log::info('STORE_CREDENTIAL_CALLED', ['user_id' => $userId, 'password_length' => strlen($plainPassword)]);
+
+        try {
+            $encryptedPassword = Crypt::encryptString($plainPassword);
+            Log::info('PASSWORD_ENCRYPTED', [
+                'user_id' => $userId,
+                'encrypted_length' => strlen($encryptedPassword),
+            ]);
+        } catch (\Throwable $exception) {
+            Log::error('PASSWORD_ENCRYPTION_FAILED', [
+                'user_id' => $userId,
+                'error' => $exception->getMessage(),
+                'exception_type' => get_class($exception),
+            ]);
+            return;
+        }
+
+        try {
+            // Try direct insert first
+            $existingId = DB::table('admin_user_credentials')->where('user_id', $userId)->value('id');
+
+            if ($existingId) {
+                DB::table('admin_user_credentials')
+                    ->where('user_id', $userId)
+                    ->update([
+                        'password_ciphertext' => $encryptedPassword,
+                        'created_by_user_id' => $createdByUserId > 0 ? $createdByUserId : null,
+                        'updated_at' => now(),
+                    ]);
+                Log::info('CREDENTIAL_UPDATED', ['user_id' => $userId, 'credential_id' => $existingId]);
+            } else {
+                DB::table('admin_user_credentials')->insert([
+                    'user_id' => $userId,
+                    'password_ciphertext' => $encryptedPassword,
+                    'created_by_user_id' => $createdByUserId > 0 ? $createdByUserId : null,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+                Log::info('CREDENTIAL_INSERTED', ['user_id' => $userId]);
+            }
+        } catch (\Throwable $exception) {
+            Log::error('CREDENTIAL_STORAGE_FAILED', [
+                'user_id' => $userId,
+                'error' => $exception->getMessage(),
+                'exception_type' => get_class($exception),
+                'trace' => $exception->getTraceAsString(),
+            ]);
+        }
     }
 }

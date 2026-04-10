@@ -11,11 +11,11 @@ import TenantDashboard from './views/TenantDashboard';
 import ApartmentManagement from './views/ApartmentManagement';
 import UserManagement from './views/UserManagement';
 import ComplaintsPage from './views/ComplaintsPage';
-import LeaseDetailsPage from './views/LeaseDetailsPage';
 import DocumentsPage from './views/DocumentsPage';
 import TechnicianDashboard from './views/TechnicianDashboard';
 import TenantPaymentsPage from './views/TenantPaymentsPage';
 import AdminPaymentsPage from './views/AdminPaymentsPage';
+import BillServiceChargePage from './views/BillServiceChargePage';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './index.css';
 import { Toaster } from 'react-hot-toast';
@@ -140,6 +140,14 @@ function App() {
             }
           />
           <Route
+            path="/admin/bill-service-charge"
+            element={
+              <RoleGuard role="admin">
+                <BillServiceChargePage />
+              </RoleGuard>
+            }
+          />
+          <Route
             path="/tenant"
             element={
               <RoleGuard role="tenant">
@@ -147,22 +155,8 @@ function App() {
               </RoleGuard>
             }
           />
-          <Route
-            path="/tenant/lease"
-            element={
-              <RoleGuard role="tenant">
-                <LeaseDetailsPage role="Tenant" />
-              </RoleGuard>
-            }
-          />
-          <Route
-            path="/tenant/lease/:id"
-            element={
-              <RoleGuard role="tenant">
-                <LeaseDetailsPage role="Tenant" />
-              </RoleGuard>
-            }
-          />
+          <Route path="/tenant/lease" element={<Navigate to="/tenant" replace />} />
+          <Route path="/tenant/lease/:id" element={<Navigate to="/tenant" replace />} />
           <Route
             path="/tenant/documents"
             element={
