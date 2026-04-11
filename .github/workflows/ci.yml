@@ -71,6 +71,7 @@ jobs:
 
       - name: Validate docker compose file
         run: |
+          echo "CI_DOCKER_ENV_FALLBACK_V2"
           if [ ! -f .env ]; then
             if [ -f .env.example ]; then
               cp .env.example .env
