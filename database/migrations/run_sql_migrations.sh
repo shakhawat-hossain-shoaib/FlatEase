@@ -81,11 +81,6 @@ done
 
 mapfile -t MYSQL_ARGS < <(build_mysql_args "$DB_USER" "$DB_PASS")
 
-# App users may not have CREATE DATABASE privilege. If creation fails, continue only if DB is usable.
-if ! mysql "${MYSQL_ARGS[@]}" -e "CREATE DATABASE IF NOT EXISTS \`${DB_NAME}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"; then
-  echo "CREATE DATABASE skipped (insufficient privileges or pre-provisioned DB)."
-fi
-
 if ! mysql "${MYSQL_ARGS[@]}" "$DB_NAME" -Nse "SELECT 1" >/dev/null 2>&1; then
   echo "Cannot access database '${DB_NAME}' with selected credentials (${DB_USER})."
   exit 1
