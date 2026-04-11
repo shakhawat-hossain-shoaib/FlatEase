@@ -62,10 +62,10 @@ jobs:
             git checkout -B main origin/main
             git reset --hard origin/main
 
-            # Clean stale resources from earlier runs that can conflict with fixed container names.
-            docker rm -f flatease-frontend flatease-backend flatease-mysql 2>/dev/null || true
+            # Always tear down previous stack first to avoid name/network conflicts.
+            docker compose down --remove-orphans || true
             docker network rm flatease_flatease-network 2>/dev/null || true
 
-            docker compose up -d --build --remove-orphans
+            docker compose up -d --build --remove-orphans --force-recreate
             docker compose exec -T backend bash /var/www/database/migrations/run_sql_migrations.sh
             docker compose exec -T backend php artisan optimize:clear
