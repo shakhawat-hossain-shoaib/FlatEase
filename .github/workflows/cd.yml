@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     env:
-      DEPLOY_PATH: ${{ secrets.DEPLOY_PATH != '' && secrets.DEPLOY_PATH || '/var/www/flatease' }}
+      DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
     steps:
       - name: Validate required deployment secrets
         env:
@@ -50,45 +50,20 @@ jobs:
           script: |
             set -e
             DEPLOY_PATH="${{ env.DEPLOY_PATH }}"
+            DEPLOY_PATH="${DEPLOY_PATH:-/var/www/flatease}"
             REPO_URL="https://github.com/${{ github.repository }}.git"
 
-            echo "[1/4] Preparing deployment directory"
             mkdir -p "$DEPLOY_PATH"
 
-            echo "[2/4] Syncing repository"
             if [ ! -d "$DEPLOY_PATH/.git" ]; then
-              cd "$DEPLOY_PATH"
-              git init
-              git remote add origin "$REPO_URL"
+              if [ -z "$(ls -A "$DEPLOY_PATH")" ]; then
+                git clone "$REPO_URL" "$DEPLOY_PATH"
+              else
+                cd "$DEPLOY_PATH"
+                git init
+                git remote add origin "$REPO_URL"
+              fi
             fi
 
             cd "$DEPLOY_PATH"
-            git remote set-url origin "$REPO_URL"
-            git fetch origin main
-            git checkout -B main origin/main
-            git reset --hard origin/main
-
-            echo "[3/4] Recreating Docker stack"
-            docker compose down --remove-orphans || true
-            docker network rm flatease_flatease-network 2>/dev/null || true
-
-            docker compose up -d --build --remove-orphans --force-recreate
-
-            echo "[4/4] Provisioning database and running migrations"
-            docker compose exec -T mysql sh -lc '
-              DB_NAME="${MYSQL_DATABASE:-${DB_DATABASE:-flatease_db}}"
-              APP_USER="${MYSQL_USER:-${DB_USERNAME:-flatease}}"
-              APP_PASS="${MYSQL_PASSWORD:-${DB_PASSWORD:-Root@1234}}"
-              ROOT_PASS="${MYSQL_ROOT_PASSWORD:-Root@1234}"
-
-              mysql -uroot -p"$ROOT_PASS" <<SQL
-CREATE DATABASE IF NOT EXISTS \`$DB_NAME\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER IF NOT EXISTS '\''$APP_USER'\''@'\''%'\'' IDENTIFIED BY '\''$APP_PASS'\'';
-ALTER USER '\''$APP_USER'\''@'\''%'\'' IDENTIFIED BY '\''$APP_PASS'\'';
-GRANT ALL PRIVILEGES ON \`$DB_NAME\`.* TO '\''$APP_USER'\''@'\''%'\'';
-FLUSH PRIVILEGES;
-SQL
-            '
-
-            docker compose exec -T backend bash /var/www/database/migrations/run_sql_migrations.sh
-            docker compose exec -T backend php artisan optimize:clear
+            REPO_URL="$REPO_URL" bash ./docker-deploy.sh

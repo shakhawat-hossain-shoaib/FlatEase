@@ -35,6 +35,9 @@ ENV COMPOSER_ALLOW_SUPERUSER=1
 # Copy Laravel application
 COPY server/ /var/www/html
 
+# Copy frontend application so the image can build the production bundle.
+COPY client/ /var/www/html/client
+
 # Add backend entrypoint so fresh clones can bootstrap dependencies at runtime
 COPY docker/backend-entrypoint.sh /usr/local/bin/backend-entrypoint.sh
 RUN chmod +x /usr/local/bin/backend-entrypoint.sh
@@ -44,6 +47,9 @@ WORKDIR /var/www/html
 
 # Install PHP dependencies
 RUN composer install --optimize-autoloader --no-dev
+
+# Build the frontend bundle into Laravel's public directory for image-based runs.
+RUN cd client && npm ci && npm run build && cd /var/www/html && rm -rf public/assets public/index.html public/vite.svg && cp -r client/dist/. public/
 
 # Set proper permissions for Laravel
 RUN chown -R www-data:www-data /var/www/html \
