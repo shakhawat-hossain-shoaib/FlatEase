@@ -44,14 +44,23 @@ jobs:
           command_timeout: 30m
           script: |
             set -e
-            if [ ! -d "${{ env.DEPLOY_PATH }}/.git" ]; then
-              mkdir -p "${{ env.DEPLOY_PATH }}"
-              git clone https://github.com/${{ github.repository }}.git "${{ env.DEPLOY_PATH }}"
+            DEPLOY_PATH="${{ env.DEPLOY_PATH }}"
+            REPO_URL="https://github.com/${{ github.repository }}.git"
+
+            mkdir -p "$DEPLOY_PATH"
+
+            # If path exists but is not a git repo, initialize it in-place.
+            if [ ! -d "$DEPLOY_PATH/.git" ]; then
+              cd "$DEPLOY_PATH"
+              git init
+              git remote add origin "$REPO_URL"
             fi
 
-            cd "${{ env.DEPLOY_PATH }}"
-            git checkout main
-            git pull --ff-only origin main
+            cd "$DEPLOY_PATH"
+            git remote set-url origin "$REPO_URL"
+            git fetch origin main
+            git checkout -B main origin/main
+            git reset --hard origin/main
 
             docker compose up -d --build
             docker compose exec -T backend bash /var/www/database/migrations/run_sql_migrations.sh
