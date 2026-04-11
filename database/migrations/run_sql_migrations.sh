@@ -6,6 +6,9 @@ DB_PORT="${DB_PORT:-3306}"
 DB_NAME="${DB_DATABASE:-flatease_db}"
 DB_USER="${DB_USERNAME:-root}"
 DB_PASS="${DB_PASSWORD:-}"
+MYSQL_ROOT_PASS="${MYSQL_ROOT_PASSWORD:-}"
+MYSQL_APP_USER="${MYSQL_USER:-}"
+MYSQL_APP_PASS="${MYSQL_PASSWORD:-}"
 MIGRATIONS_DIR="${1:-/var/www/database/migrations/sql}"
 ORDER_FILE="${ORDER_FILE:-$MIGRATIONS_DIR/.migration-order}"
 
@@ -14,11 +17,38 @@ if [ ! -d "$MIGRATIONS_DIR" ]; then
   exit 1
 fi
 
-MYSQL_ARGS=("-h${DB_HOST}" "-P${DB_PORT}" "-u${DB_USER}" "--default-character-set=utf8mb4")
-if [ -n "$DB_PASS" ]; then
-  MYSQL_ARGS+=("-p${DB_PASS}")
+build_mysql_args() {
+  local user="$1"
+  local pass="$2"
+  local args=("-h${DB_HOST}" "-P${DB_PORT}" "-u${user}" "--default-character-set=utf8mb4" "--skip-ssl")
+  if [ -n "$pass" ]; then
+    args+=("-p${pass}")
+  fi
+  printf '%s\n' "${args[@]}"
+}
+
+can_connect() {
+  local user="$1"
+  local pass="$2"
+  mapfile -t test_args < <(build_mysql_args "$user" "$pass")
+  mysql "${test_args[@]}" -Nse "SELECT 1" >/dev/null 2>&1
+}
+
+# Prefer root credentials (best for CREATE DATABASE), then app/env credentials.
+if can_connect "root" "$MYSQL_ROOT_PASS"; then
+  DB_USER="root"
+  DB_PASS="$MYSQL_ROOT_PASS"
+elif can_connect "$DB_USER" "$DB_PASS"; then
+  :
+elif [ -n "$MYSQL_APP_USER" ] && can_connect "$MYSQL_APP_USER" "$MYSQL_APP_PASS"; then
+  DB_USER="$MYSQL_APP_USER"
+  DB_PASS="$MYSQL_APP_PASS"
+else
+  echo "Unable to connect to MySQL with available credentials (DB_* / MYSQL_*)."
+  exit 1
 fi
-MYSQL_ARGS+=("--skip-ssl")
+
+mapfile -t MYSQL_ARGS < <(build_mysql_args "$DB_USER" "$DB_PASS")
 
 mysql "${MYSQL_ARGS[@]}" -e "CREATE DATABASE IF NOT EXISTS \`${DB_NAME}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 
