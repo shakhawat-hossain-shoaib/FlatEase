@@ -1,4 +1,4 @@
-import axios, { AxiosInstance } from 'axios';
+import axios, { AxiosError, AxiosInstance } from 'axios';
 import { secrets } from './secrets';
 import toast from 'react-hot-toast';
 
@@ -1520,14 +1520,18 @@ class ApiClient {
   }
 
   // Handle common errors
-  handleError(error: any) {
+  handleError(error: unknown) {
     let toastMessage = 'Something went wrong';
 
-    if (error.response) {
+    const axiosError = axios.isAxiosError(error) ? (error as AxiosError<unknown>) : null;
+
+    if (axiosError?.response) {
       // Server responded with a status other than 2xx
-      const status = error.response.status;
-      const data = error.response.data ?? {};
-      const errorGroups = data.errors ? Object.values(data.errors) : [];
+      const status = axiosError.response.status;
+      const responseData = axiosError.response.data;
+      const data = typeof responseData === 'object' && responseData !== null ? responseData : {};
+      const maybeErrors = (data as { errors?: unknown }).errors;
+      const errorGroups = maybeErrors && typeof maybeErrors === 'object' ? Object.values(maybeErrors as Record<string, unknown>) : [];
       const firstValidationMessage =
         Array.isArray(errorGroups) && errorGroups.length > 0 && Array.isArray(errorGroups[0])
           ? String(errorGroups[0][0])
@@ -1536,17 +1540,20 @@ class ApiClient {
       if (status === 419) {
         toastMessage = 'CSRF token mismatch. Please refresh and sign in again.';
       } else {
-        toastMessage = firstValidationMessage || data.message || data.error || `Request failed with status code ${status}`;
+        const message = (data as { message?: string }).message;
+        const errorText = (data as { error?: string }).error;
+        toastMessage = firstValidationMessage || message || errorText || `Request failed with status code ${status}`;
       }
       console.error(`API Error: ${status} - ${toastMessage}`);
-    } else if (error.request) {
+    } else if (axiosError?.request) {
       // Request was made, but no response was received
-      console.error('API Error: No response received', error.request);
+      console.error('API Error: No response received', axiosError.request);
       toastMessage = 'No response from server. Check backend and database are running.';
     } else {
       // Something went wrong while setting up the request
-      console.error('API Error:', error.message);
-      toastMessage = error.message || toastMessage;
+      const fallbackError = error as { message?: string };
+      console.error('API Error:', fallbackError?.message ?? error);
+      toastMessage = fallbackError?.message || toastMessage;
     }
 
     toast.error(toastMessage);

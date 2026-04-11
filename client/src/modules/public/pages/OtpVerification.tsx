@@ -197,7 +197,17 @@ export default function OtpVerification() {
           <span className="auth-chip">{challenge.attemptsRemaining} attempts left</span>
         </div>
 
-        <Form className="auth-form-stack" onSubmit={(e) => { e.preventDefault(); isPasswordReset ? handlePasswordReset() : handleRegistrationVerify(); }}>
+        <Form
+          className="auth-form-stack"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (isPasswordReset) {
+              void handlePasswordReset();
+            } else {
+              void handleRegistrationVerify();
+            }
+          }}
+        >
           <Form.Group controlId="otpCode">
             <Form.Label>OTP code</Form.Label>
             <Form.Control

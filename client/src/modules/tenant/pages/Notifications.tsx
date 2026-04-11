@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Badge, Button, Card, Col, Row, Spinner } from 'react-bootstrap';
 import { BsBell, BsCheck2Circle, BsEnvelopeOpen, BsEnvelopePaper } from 'react-icons/bs';
 import ApiClient, { AppNotificationEntity } from '../../api';
@@ -14,16 +14,16 @@ export default function Notifications() {
   const [isLoading, setIsLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
-  const loadNotifications = async () => {
+  const loadNotifications = useCallback(async () => {
     setIsLoading(true);
     const response = await api.getNotifications(50);
     setNotifications(response?.data ?? []);
     setIsLoading(false);
-  };
+  }, [api]);
 
   useEffect(() => {
     void loadNotifications();
-  }, []);
+  }, [loadNotifications]);
 
   const unreadCount = notifications.filter((notification) => notification.read_at === null).length;
 

@@ -1,4 +1,4 @@
-import { ChangeEvent, useEffect, useMemo, useState } from 'react';
+import { ChangeEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import { Badge, Button, Card, Col, Form, Row } from 'react-bootstrap';
 import { BsCheckCircle, BsCloudArrowUp, BsFileEarmarkText, BsTrash } from 'react-icons/bs';
@@ -33,7 +33,7 @@ export default function DocumentsPage() {
   const [uploadingTypeId, setUploadingTypeId] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  const refreshData = async () => {
+  const refreshData = useCallback(async () => {
     setIsLoading(true);
     const [checklistResponse, docsResponse] = await Promise.all([
       api.getTenantDocumentChecklist(),
@@ -43,11 +43,11 @@ export default function DocumentsPage() {
     setChecklist(checklistResponse ?? []);
     setDocuments(docsResponse ?? []);
     setIsLoading(false);
-  };
+  }, [api]);
 
   useEffect(() => {
     void refreshData();
-  }, []);
+  }, [refreshData]);
 
   const requiredCount = checklist.filter((item) => item.is_required).length;
   const uploadedRequiredCount = checklist.filter((item) => item.is_required && item.uploaded).length;
