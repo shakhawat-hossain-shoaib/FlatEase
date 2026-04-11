@@ -40,8 +40,8 @@ const normalizeLoopbackEndpoint = (endpoint: string): string => {
 };
 
 const defaultBackendEndpoint =
-  typeof window !== 'undefined' && window.location.hostname === 'localhost'
-    ? 'http://localhost:8000'
+  typeof window !== 'undefined'
+    ? `${window.location.protocol}//${window.location.hostname}:8000`
     : 'http://127.0.0.1:8000';
 
 const configuredBackendEndpoint =

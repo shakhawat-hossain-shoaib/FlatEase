@@ -65,11 +65,13 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.frontend
+      args:
+        VITE_BACKEND_ENDPOINT: ${VITE_BACKEND_ENDPOINT:-http://147.182.164.48:8000}
     container_name: flatease-frontend
     env_file:
       - .env
     environment:
-      VITE_BACKEND_ENDPOINT: ${VITE_BACKEND_ENDPOINT:-http://localhost:8000}
+      VITE_BACKEND_ENDPOINT: ${VITE_BACKEND_ENDPOINT:-http://147.182.164.48:8000}
     ports:
       - "${FRONTEND_PORT:-5173}:5173"
     networks:
