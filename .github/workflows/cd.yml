@@ -62,6 +62,10 @@ jobs:
             git checkout -B main origin/main
             git reset --hard origin/main
 
-            docker compose up -d --build
+            # Clean stale resources from earlier runs that can conflict with fixed container names.
+            docker rm -f flatease-frontend flatease-backend flatease-mysql 2>/dev/null || true
+            docker network rm flatease_flatease-network 2>/dev/null || true
+
+            docker compose up -d --build --remove-orphans
             docker compose exec -T backend bash /var/www/database/migrations/run_sql_migrations.sh
             docker compose exec -T backend php artisan optimize:clear
