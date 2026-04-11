@@ -69,6 +69,9 @@ jobs:
             docker compose up -d --build --remove-orphans --force-recreate
 
             # Ensure database and app user privileges exist before running SQL migrations.
+            docker compose exec -T backend sh -lc 'printf "BACKEND_DB_DATABASE=%s\nBACKEND_DB_USERNAME=%s\nBACKEND_MYSQL_DATABASE=%s\nBACKEND_MYSQL_USER=%s\n" "$DB_DATABASE" "$DB_USERNAME" "$MYSQL_DATABASE" "$MYSQL_USER"'
+            docker compose exec -T mysql sh -lc 'printf "MYSQL_DB_DATABASE=%s\nMYSQL_DB_USERNAME=%s\nMYSQL_MYSQL_DATABASE=%s\nMYSQL_MYSQL_USER=%s\n" "$DB_DATABASE" "$DB_USERNAME" "$MYSQL_DATABASE" "$MYSQL_USER"'
+
             docker compose exec -T mysql sh -lc '
               DB_NAME="${MYSQL_DATABASE:-${DB_DATABASE:-flatease_db}}"
               APP_USER="${MYSQL_USER:-${DB_USERNAME:-flatease}}"
