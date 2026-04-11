@@ -67,5 +67,22 @@ jobs:
             docker network rm flatease_flatease-network 2>/dev/null || true
 
             docker compose up -d --build --remove-orphans --force-recreate
+
+            # Ensure database and app user privileges exist before running SQL migrations.
+            docker compose exec -T mysql sh -lc '
+              DB_NAME="${MYSQL_DATABASE:-${DB_DATABASE:-flatease_db}}"
+              APP_USER="${MYSQL_USER:-${DB_USERNAME:-flatease}}"
+              APP_PASS="${MYSQL_PASSWORD:-${DB_PASSWORD:-Root@1234}}"
+              ROOT_PASS="${MYSQL_ROOT_PASSWORD:-Root@1234}"
+
+              mysql -uroot -p"$ROOT_PASS" <<SQL
+CREATE DATABASE IF NOT EXISTS \`$DB_NAME\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER IF NOT EXISTS '\''$APP_USER'\''@'\''%'\'' IDENTIFIED BY '\''$APP_PASS'\'';
+ALTER USER '\''$APP_USER'\''@'\''%'\'' IDENTIFIED BY '\''$APP_PASS'\'';
+GRANT ALL PRIVILEGES ON \`$DB_NAME\`.* TO '\''$APP_USER'\''@'\''%'\'';
+FLUSH PRIVILEGES;
+SQL
+            '
+
             docker compose exec -T backend bash /var/www/database/migrations/run_sql_migrations.sh
             docker compose exec -T backend php artisan optimize:clear
